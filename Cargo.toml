@@ -14,3 +14,4 @@ reqwest = { version = "0.10", features = ["blocking"] }
 rand = "0.7"
 sha-1 = "0.8"
 percent-encoding = "2.1"
+byteorder = "1.3"
