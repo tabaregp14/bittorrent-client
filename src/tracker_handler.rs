@@ -12,15 +12,15 @@ use byteorder::{BigEndian, ByteOrder};
 
 struct PeerVecVisitor;
 #[derive(Debug, Deserialize)]
-struct Peer {
-    ip: Ipv4Addr,
-    port: u16
+pub struct Peer {
+    pub ip: Ipv4Addr,
+    pub port: u16
 }
 #[derive(Debug, Deserialize)]
 pub struct TrackerResponse {
     interval: u32,
     #[serde(deserialize_with = "Peer::vec_from_bytes")]
-    peers: Vec<Peer>
+    pub peers: Vec<Peer>
 }
 
 impl Peer {
@@ -49,15 +49,17 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
     }
 }
 
-pub fn request_peers(torrent: Torrent, peer_id: &String, port: &u16) -> Result<TrackerResponse, Box<dyn Error>> {
-    let url_hash = torrent.info_hash
+pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result<TrackerResponse, Box<dyn Error>> {
+    let url_hash = (&torrent.info_hash)
         .into_iter()
-        .map(percent_encode_byte)
+        .map(|b| percent_encode_byte(*b))
         .collect::<String>();
-    let base_url = format!("{}?info_hash={}", torrent.announce, url_hash);
+    let peer_id_es = peer_id.into_iter()
+        .map(|b| percent_encode_byte(*b))
+        .collect::<String>();
+    let base_url = format!("{}?info_hash={}&peer_id={}", torrent.announce, url_hash, peer_id_es);
     let url = Url::parse_with_params(base_url.as_str(),
-                                     &[("peer_id", peer_id.to_string()),
-                                         ("port", port.to_string()),
+                                     &[("port", port.to_string()),
                                          ("uploaded", "0".to_string()),
                                          ("downloaded", "0".to_string()),
                                          ("compact", "1".to_string()),
