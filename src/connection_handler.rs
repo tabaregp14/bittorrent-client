@@ -48,7 +48,7 @@ impl Handshake {
         })
     }
 
-    pub fn complete_handshake(mut conn: &TcpStream, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Handshake, Box<dyn Error>> {
+    fn complete_handshake(mut conn: &TcpStream, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Handshake, Box<dyn Error>> {
         let hs = Handshake::new(info_hash, peer_id);
         let mut bf = [0; 68];
 
@@ -70,7 +70,7 @@ impl Handshake {
 pub fn connect(peer: &Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<(), Box<dyn Error>> {
     let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
     let conn = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
-    let res = complete_handshake(&conn, info_hash, peer_id)?;
+    let res = Handshake::complete_handshake(&conn, info_hash, peer_id)?;
 
 //    conn.set_write_timeout(Some(Duration::from_secs(5)))?;
 //    conn.set_read_timeout(Some(Duration::from_secs(5)))?;
