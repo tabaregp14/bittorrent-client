@@ -2,13 +2,21 @@ use std::net::{TcpStream, SocketAddr, IpAddr};
 use crate::tracker_handler::Peer;
 use std::time::Duration;
 use std::error::Error;
-use std::io::{Write, Read};
+use std::io::{self, Write, Read};
 use std::convert::TryFrom;
 use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub struct Handshake {
     pstr: String,
+    info_hash: Vec<u8>,
+    peer_id: Vec<u8>
+}
+
+pub struct Connection {
+    pub stream: TcpStream,
+    chocked: bool,
+    peer: Peer,
     info_hash: Vec<u8>,
     peer_id: Vec<u8>
 }
@@ -47,36 +55,59 @@ impl Handshake {
             peer_id
         })
     }
-
-    fn complete_handshake(mut conn: &TcpStream, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Handshake, Box<dyn Error>> {
-        let hs = Handshake::new(info_hash, peer_id);
-        let mut bf = [0; 68];
-
-        conn.write_all(&hs.as_bytes().as_slice())?;
-        conn.read_exact(&mut bf)?;
-
-        let res_hs = Handshake::from_bytes(&bf)?;
-
-        if hs.info_hash.eq(&res_hs.info_hash) {
-            println!("Successful handshake");
-            Ok(res_hs)
-        } else {
-            println!("Expected info_hash: {:?} but got {:?}", hs.info_hash, res_hs.info_hash);
-            Err(Box::try_from("algo").unwrap())
-        }
-    }
 }
 
-pub fn connect(peer: &Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<(), Box<dyn Error>> {
-    let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
-    let conn = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
-    let res = Handshake::complete_handshake(&conn, info_hash, peer_id)?;
+impl Connection {
+    pub fn connect(peer: Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Connection, Box<dyn Error>> {
+        let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
+        let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
 
 //    conn.set_write_timeout(Some(Duration::from_secs(5)))?;
 //    conn.set_read_timeout(Some(Duration::from_secs(5)))?;
 
-    Ok(())
+        Ok(Connection {
+            stream,
+            chocked: true,
+            peer,
+            info_hash,
+            peer_id
+        })
+    }
+
+    pub fn complete_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
+        let hs = self.send_handshake()?;
+        let res_hs = self.receive_handshake()?;
+
+        if hs.info_hash.eq(&res_hs.info_hash) {
+            println!("Successful handshake");
+
+            Ok(res_hs)
+        } else {
+            println!("Expected info_hash: {:?} but got {:?}", hs.info_hash, res_hs.info_hash);
+
+            Err(Box::try_from("algo").unwrap())
+        }
+    }
+
+    fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
+        let hs = Handshake::new(self.info_hash.to_owned(), self.peer_id.to_owned());
+
+        self.stream.write_all(&hs.as_bytes().as_slice())?;
+
+        Ok(hs)
+    }
+
+    fn receive_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
+        let mut buf = [0; 68];
+
+        self.stream.read_exact(&mut buf)?;
+
+        let res_hs = Handshake::from_bytes(&buf)?;
+
+        Ok(res_hs)
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
