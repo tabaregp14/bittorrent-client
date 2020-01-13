@@ -58,7 +58,7 @@ impl Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Connection, Box<dyn Error>> {
+    pub fn connect(peer: Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Connection, io::Error> {
         let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
 
@@ -79,13 +79,13 @@ impl Connection {
         let res_hs = self.receive_handshake()?;
 
         if hs.info_hash.eq(&res_hs.info_hash) {
-            println!("Successful handshake");
+            println!("Successful handshake.");
 
             Ok(res_hs)
         } else {
             println!("Expected info_hash: {:?} but got {:?}", hs.info_hash, res_hs.info_hash);
 
-            Err(Box::try_from("algo").unwrap())
+            Err(Box::try_from("Incorrect info_hash.").unwrap())
         }
     }
 

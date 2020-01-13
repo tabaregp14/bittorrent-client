@@ -4,6 +4,7 @@ use std::error::Error;
 use rand::Rng;
 use crate::torrent_handler::Torrent;
 use crate::connection::Connection;
+use std::net::{SocketAddr, IpAddr};
 
 mod connection;
 mod message;
@@ -20,11 +21,26 @@ fn main() {
 
     let test_peer = res.peers.pop().unwrap();
 
-    let mut conn = Connection::connect(test_peer, torrent.info_hash, peer_id).unwrap();
-    let hs = conn.complete_handshake().unwrap();
-    let msg = message::Message::read(&conn.stream).unwrap();
+    let peer_addr = SocketAddr::new(
+        IpAddr::from(test_peer.ip.to_owned()),
+        test_peer.port.to_owned()
+    );
+    let conn = Connection::connect(test_peer, torrent.info_hash, peer_id);
 
-    println!("{:?}", msg);
+    match conn {
+        Ok(mut conn) => {
+            let hs = conn.complete_handshake().unwrap();
+            let msg = message::Message::read(&conn.stream).unwrap();
+
+            println!("{:?}", msg);
+        },
+        Err(_) => println!("Connection with {} timed out.", peer_addr)
+    }
+
+//    let hs = conn.complete_handshake().unwrap();
+//    let msg = message::Message::read(&conn.stream).unwrap();
+//
+//    println!("{:?}", msg);
 }
 
 fn read_input() -> Result<String, Box<dyn Error>> {

@@ -1,6 +1,5 @@
-use std::error::Error;
 use std::net::TcpStream;
-use std::io::Read;
+use std::io::{self, Read};
 use byteorder::{BigEndian, ByteOrder};
 
 #[derive(Debug)]
@@ -45,7 +44,7 @@ impl Message {
         }
     }
 
-    pub fn read(mut conn: &TcpStream) -> Result<Message, Box<dyn Error>> {
+    pub fn read(mut conn: &TcpStream) -> Result<Message, io::Error> {
         let mut msg_len = [0; 4];
 
         conn.read_exact(&mut msg_len)?;
