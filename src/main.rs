@@ -3,9 +3,9 @@ use std::path::Path;
 use std::error::Error;
 use rand::Rng;
 use crate::torrent_handler::Torrent;
-use crate::connection_handler::Connection;
+use crate::connection::Connection;
 
-mod connection_handler;
+mod connection;
 mod message;
 mod torrent_handler;
 mod tracker_handler;
