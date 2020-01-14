@@ -1,4 +1,4 @@
-use crate::torrent_handler::Torrent;
+use crate::torrent::Torrent;
 use reqwest;
 use reqwest::Url;
 use std::time::Duration;

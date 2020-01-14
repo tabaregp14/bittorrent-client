@@ -2,13 +2,13 @@ use std::io;
 use std::path::Path;
 use std::error::Error;
 use rand::Rng;
-use crate::torrent_handler::Torrent;
+use crate::torrent::Torrent;
 use crate::connection::Connection;
 use std::net::{SocketAddr, IpAddr};
 
 mod connection;
 mod message;
-mod torrent_handler;
+mod torrent;
 mod tracker_handler;
 
 fn main() {
