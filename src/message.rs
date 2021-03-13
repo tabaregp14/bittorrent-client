@@ -41,6 +41,62 @@ impl Message {
             _ => panic!("Bad message ID: {}", id)
         }
     }
+
+    pub fn serialize(self) -> Vec<u8> {
+        let mut len = [0; 4];
+        let mut payload = Vec::<u8>::new();
+        let mut message = Vec::<u8>::new();
+
+        match self {
+            Message::KeepAlive => {},
+            Message::Choke => payload.push(0),
+            Message::Unchoke => payload.push(1),
+            Message::Interested => payload.push(2),
+            Message::NotInterested => payload.push(3),
+            Message::Have(index) => {
+                let mut buf = [0; 4];
+
+                BigEndian::write_u32(&mut buf, index);
+                payload.push(4);
+                payload.extend(&buf);
+            },
+            Message::Bitfield(bitfield) => {
+                payload.push(5);
+                payload.extend(bitfield);
+            },
+            Message::Request(index, begin, len) => {
+                let mut i = [0; 4];
+                let mut b = [0; 4];
+                let mut l = [0; 4];
+
+                BigEndian::write_u32(&mut i, index);
+                BigEndian::write_u32(&mut b, begin);
+                BigEndian::write_u32(&mut l, len);
+                payload.push(6);
+                payload.extend(&i);
+                payload.extend(&b);
+                payload.extend(&l);
+            },
+            Message::Piece(index, begin, piece) => {
+                let mut i = [0; 4];
+                let mut b = [0; 4];
+
+                BigEndian::write_u32(&mut i, index);
+                BigEndian::write_u32(&mut b, begin);
+                payload.push(7);
+                payload.extend(&i);
+                payload.extend(&b);
+                payload.extend(piece);
+            },
+            Message::Cancel => payload.push(8)
+        }
+
+        BigEndian::write_u32(&mut len, payload.len() as u32);
+        message.extend(&len);
+        message.extend(payload);
+
+        message
+    }
 }
 
 
