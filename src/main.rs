@@ -1,6 +1,5 @@
-use std::io;
+use std::env;
 use std::path::Path;
-use std::error::Error;
 use rand::Rng;
 use crate::torrent::Torrent;
 use crate::connection::Connection;
@@ -12,8 +11,8 @@ mod torrent;
 mod tracker_handler;
 
 fn main() {
-    let input = read_input().unwrap();
-    let path = Path::new(&input);
+    let args = env::args().collect::<Vec<String>>();
+    let path = Path::new(&args[1]);
     let torrent = Torrent::open(path).unwrap();
     let peer_id = rand::thread_rng().gen::<[u8; 20]>().to_vec();
     let port = 6881;
@@ -41,15 +40,4 @@ fn main() {
 //    let msg = message::Message::read(&conn.stream).unwrap();
 //
 //    println!("{:?}", msg);
-}
-
-fn read_input() -> Result<String, Box<dyn Error>> {
-    let mut input = String::new();
-
-    println!("Path of the torrent");
-    io::stdin().read_line(&mut input)?;
-
-    input = input.trim().parse()?;
-
-    Ok(input)
 }
