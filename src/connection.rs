@@ -3,7 +3,7 @@ use crate::tracker_handler::Peer;
 use std::time::Duration;
 use std::error::Error;
 use std::io::{self, Write, Read};
-use std::convert::TryFrom;
+use std::fmt;
 use std::string::FromUtf8Error;
 
 #[derive(Debug)]
@@ -74,21 +74,6 @@ impl Connection {
         })
     }
 
-    pub fn complete_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
-        let hs = self.send_handshake()?;
-        let res_hs = self.receive_handshake()?;
-
-        if hs.info_hash.eq(&res_hs.info_hash) {
-            println!("Successful handshake.");
-
-            Ok(res_hs)
-        } else {
-            println!("Expected info_hash: {:?} but got {:?}", hs.info_hash, res_hs.info_hash);
-
-            Err(Box::try_from("Incorrect info_hash.").unwrap())
-        }
-    }
-
     fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
         let hs = Handshake::new(self.info_hash.to_owned(), self.peer_id.to_owned());
 
@@ -106,8 +91,31 @@ impl Connection {
 
         Ok(res_hs)
     }
+
+    fn complete_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
+        let hs = self.send_handshake()?;
+        let res_hs = self.receive_handshake()?;
+
+        if hs.info_hash.eq(&res_hs.info_hash) {
+            println!("Successful handshake.");
+
+            Ok(res_hs)
+        } else {
+            Err(Box::new(IncorrectHash(hs.info_hash, res_hs.info_hash)))
+        }
+    }
 }
 
+#[derive(Debug)]
+struct IncorrectHash(Vec<u8>, Vec<u8>);
+
+impl fmt::Display for IncorrectHash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Incorrect info_hash, Expected info_hash: {:?} but got {:?}", self.0, self.1)
+    }
+}
+
+impl Error for IncorrectHash {}
 
 #[cfg(test)]
 mod tests {
