@@ -1,5 +1,3 @@
-use std::net::TcpStream;
-use std::io::{self, Read};
 use byteorder::{BigEndian, ByteOrder};
 
 #[derive(Debug)]
@@ -41,23 +39,6 @@ impl Message {
             },
             8 => Message::Cancel,
             _ => panic!("Bad message ID: {}", id)
-        }
-    }
-
-    pub fn read(mut conn: &TcpStream) -> Result<Message, io::Error> {
-        let mut msg_len = [0; 4];
-
-        conn.read_exact(&mut msg_len)?;
-
-        let msg_len = BigEndian::read_u32(&msg_len);
-        let mut msg = Vec::new();
-
-        conn.take(msg_len as u64).read_to_end(&mut msg)?;
-
-        if msg_len > 0 {
-            Ok(Message::new(msg[0], &msg[1..]))
-        } else {
-            Ok(Message::KeepAlive)
         }
     }
 }

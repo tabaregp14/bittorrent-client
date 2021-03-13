@@ -5,6 +5,8 @@ use std::error::Error;
 use std::io::{self, Write, Read};
 use std::fmt;
 use std::string::FromUtf8Error;
+use byteorder::{BigEndian, ByteOrder};
+use crate::message::Message;
 
 #[derive(Debug)]
 pub struct Handshake {
@@ -78,6 +80,30 @@ impl Connection {
         conn.complete_handshake()?;
 
         Ok(conn)
+    }
+
+    pub fn send(&mut self, message: Message) -> Result<(), io::Error> {
+        self.stream.write_all(&message.serialize())?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self) -> Result<Message, io::Error> {
+        let mut buf = [0; 4];
+        let mut stream = &self.stream;
+        let mut msg = Vec::new();
+
+        stream.read_exact(&mut buf)?;
+
+        let msg_len = BigEndian::read_u32(&buf);
+
+        stream.take(msg_len as u64).read_to_end(&mut msg)?;
+
+        if msg_len > 0 {
+            Ok(Message::new(msg[0], &msg[1..]))
+        } else {
+            Ok(Message::KeepAlive)
+        }
     }
 
     fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
