@@ -27,15 +27,15 @@ impl Message {
             5 => Message::Bitfield(payload.to_vec()),
             6 => {
                 let index = BigEndian::read_u32(&payload[..4]);
-                let begin = BigEndian::read_u32(&payload[5..8]);
-                let length = BigEndian::read_u32(&payload[9..]);
+                let begin = BigEndian::read_u32(&payload[4..8]);
+                let length = BigEndian::read_u32(&payload[8..]);
 
                 Message::Request(index, begin, length)
             },
             7 => {
                 let index = BigEndian::read_u32(&payload[..4]);
-                let begin = BigEndian::read_u32(&payload[5..8]);
-                let piece = payload[9..].to_vec();
+                let begin = BigEndian::read_u32(&payload[4..8]);
+                let piece = payload[8..].to_vec();
 
                 Message::Piece(index, begin, piece)
             },
