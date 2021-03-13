@@ -15,7 +15,9 @@ pub struct Handshake {
 
 pub struct Connection {
     pub stream: TcpStream,
-    chocked: bool,
+    pub chocked: bool,
+    pub downloaded: u32,
+    pub bitfield: Option<Vec<u8>>,
     peer: Peer,
     info_hash: Vec<u8>,
     peer_id: Vec<u8>
@@ -58,20 +60,24 @@ impl Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: Vec<u8>, peer_id: Vec<u8>) -> Result<Connection, io::Error> {
+    pub fn connect(peer: Peer, info_hash: &Vec<u8>, peer_id: &Vec<u8>) -> Result<Connection, Box<dyn Error>> {
         let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
-
-//    conn.set_write_timeout(Some(Duration::from_secs(5)))?;
-//    conn.set_read_timeout(Some(Duration::from_secs(5)))?;
-
-        Ok(Connection {
+        let mut conn = Connection {
             stream,
             chocked: true,
+            downloaded: 0,
+            bitfield: None,
             peer,
-            info_hash,
-            peer_id
-        })
+            info_hash: info_hash.to_owned(),
+            peer_id: peer_id.to_owned()
+        };
+
+        conn.stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+        conn.stream.set_read_timeout(Some(Duration::from_secs(30)))?;
+        conn.complete_handshake()?;
+
+        Ok(conn)
     }
 
     fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
