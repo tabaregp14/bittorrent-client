@@ -1,10 +1,12 @@
 use std::error::Error;
-use std::fs;
+use std::{fs, fmt, io};
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
+use crate::message::Message;
+use crate::connection::Connection;
 
 type PieceHash = Vec<u8>;
 
@@ -83,6 +85,69 @@ impl Torrent {
         let torrent = bencode_torrent.to_torrent()?;
 
         Ok(torrent)
+    }
+}
+
+impl DownloadPieceState {
+    const MAX_CONCURRENT_REQUESTS: u8 = 5;
+
+    fn new(index: u32, length: u32) -> DownloadPieceState {
+        DownloadPieceState {
+            index,
+            requested: 0,
+            downloaded: 0,
+            buf: vec![0; length as usize],
+            concurrent_requests: 0
+        }
+    }
+
+    fn send_request(&mut self, block_size: u32, conn: &mut Connection) -> Result<(), io::Error> {
+        conn.send(Message::Request(self.index, self.requested, block_size))?;
+
+        self.requested += block_size;
+        self.concurrent_requests += 1;
+
+        Ok(())
+    }
+
+    fn read_message(&mut self, conn: &mut Connection) -> Result<(), io::Error> {
+        match conn.read()? {
+            Message::Piece(index, begin, block) => {
+                let length = (&block.len() + 0) as u32;
+
+                if index != self.index {
+                    println!("Expected piece ID {} but got {}", &self.index, &index);
+
+                    self.concurrent_requests -= 1;
+                    return Ok(());
+                }
+
+                self.buf.splice(begin as usize..begin as usize + block.len(), block);
+                self.downloaded += length as u32;
+                self.concurrent_requests -= 1;
+
+                Ok(())
+            },
+            Message::Have(index) => {
+                println!("Have: {}", &index);
+                conn.set_piece(&index);
+                self.concurrent_requests -= 1;
+
+                Ok(())
+            },
+            Message::Choke => {
+                println!("Choked");
+                conn.chocked = true;
+                self.concurrent_requests -= 1;
+
+                Ok(())
+            },
+            _ => {
+                println!("Other message");
+
+                Ok(())
+            }
+        }
     }
 }
 
