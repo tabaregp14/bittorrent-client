@@ -9,6 +9,7 @@ use crate::message::Message;
 use crate::connection::Connection;
 
 type PieceHash = Vec<u8>;
+type DownloadedTorrent = Vec<u8>;
 
 #[derive(Deserialize, Serialize)]
 struct TorrentInfo {
@@ -85,6 +86,62 @@ impl Torrent {
         let torrent = bencode_torrent.to_torrent()?;
 
         Ok(torrent)
+    }
+
+    fn create_pieces_queue(&self) -> Vec<Piece> {
+        let mut work_queue = Vec::<Piece>::new();
+        let piece_length = self.piece_length as u64;
+        let mut length = piece_length;
+
+        for (index, hash) in self.pieces.iter().enumerate() {
+            if index == self.pieces.len() - 1 && self.calculate_length() % piece_length > 0 {
+                length = self.calculate_length() % piece_length;
+            }
+            let piece = Piece::new(index as u32,
+                                   hash.to_owned(),
+                                   length as u32);
+
+            work_queue.push(piece);
+        }
+
+        work_queue
+    }
+
+    pub fn download(&self, conn: &mut Connection) -> DownloadedTorrent {
+        let mut buf = vec![0; self.calculate_length() as usize];
+        let mut work_queue = self.create_pieces_queue();
+        let mut done_pieces = 0;
+
+        while done_pieces < self.pieces.len() {
+            let work_piece = work_queue.pop().unwrap();
+
+            if !conn.has_piece(&work_piece.index) {
+                println!("Peer doesn't have piece {}", &work_piece.index);
+
+                work_queue.push(work_piece);
+
+                continue;
+            }
+
+            println!("DOWNLOADING PIECE: {}", &work_piece.index);
+            let piece_result = work_piece.try_download(conn);
+
+            match piece_result {
+                Ok(piece) => {
+                    buf.splice(work_piece.begin as usize..work_piece.end as usize, piece);
+                    done_pieces += 1;
+
+                    println!("Done pieces: {} / {}", &done_pieces, &self.pieces.len());
+                }
+                Err(e) => {
+                    println!("ERROR: {}", e);
+
+                    work_queue.push(work_piece.to_owned());
+                }
+            }
+        }
+
+        buf
     }
 
     pub fn calculate_length(&self) -> u64 {
