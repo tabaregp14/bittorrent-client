@@ -1,4 +1,3 @@
-use crate::torrent::Torrent;
 use reqwest;
 use reqwest::Url;
 use std::time::Duration;
@@ -9,6 +8,7 @@ use serde::{Deserialize, Deserializer, de};
 use serde::de::Visitor;
 use core::fmt;
 use byteorder::{BigEndian, ByteOrder};
+use crate::torrent::Torrent;
 
 struct PeerVecVisitor;
 #[derive(Debug, Deserialize)]

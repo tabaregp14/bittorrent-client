@@ -1,11 +1,11 @@
 use std::net::{TcpStream, SocketAddr, IpAddr};
-use crate::tracker_handler::Peer;
 use std::time::Duration;
 use std::error::Error;
 use std::io::{self, Write, Read};
 use std::fmt;
 use std::string::FromUtf8Error;
 use byteorder::{BigEndian, ByteOrder};
+use crate::tracker_handler::Peer;
 use crate::message::Message;
 
 #[derive(Debug)]
