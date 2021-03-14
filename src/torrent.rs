@@ -33,12 +33,7 @@ pub struct Torrent {
 impl TorrentInfo {
     fn hash(&self) -> Result<Vec<u8>, serde_bencode::Error> {
         let bytes = serde_bencode::to_bytes(self)?;
-        let mut hasher = Sha1::new();
-
-        hasher.input(bytes);
-
-        Ok(hasher.result()
-            .to_vec())
+        Ok(hash_sha1(&bytes))
     }
 }
 
@@ -62,6 +57,14 @@ impl Torrent {
 
         Ok(torrent)
     }
+}
+
+fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
+    let mut hasher = Sha1::new();
+
+    hasher.input(v);
+
+    hasher.result().to_vec()
 }
 
 
