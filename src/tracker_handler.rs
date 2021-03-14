@@ -26,7 +26,6 @@ pub struct TrackerResponse {
 impl Peer {
     fn from_bytes(b: &[u8]) -> Peer {
         let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
-//        let port = (b[4] as u16) * 256 + (b[5] as u16);
         let port = BigEndian::read_u16(&[b[4], b[5]]);
 
         Peer { ip, port }
