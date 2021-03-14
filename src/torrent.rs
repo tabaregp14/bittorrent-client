@@ -86,6 +86,16 @@ impl Torrent {
 
         Ok(torrent)
     }
+
+    pub fn calculate_length(&self) -> u64 {
+        match self.length {
+            Some(length) => length,
+            None => self.files.as_ref()
+                .unwrap()
+                .iter()
+                .fold(0, |acc, file| acc + file.length)
+        }
+    }
 }
 
 impl Piece {

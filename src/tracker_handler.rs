@@ -63,7 +63,7 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
                                          ("uploaded", "0".to_string()),
                                          ("downloaded", "0".to_string()),
                                          ("compact", "1".to_string()),
-                                         ("left", torrent.length.to_string())])?;
+                                         ("left", torrent.calculate_length().to_string())])?;
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()?;
