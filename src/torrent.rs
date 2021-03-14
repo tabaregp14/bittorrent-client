@@ -88,6 +88,57 @@ impl Torrent {
     }
 }
 
+impl Piece {
+    const MAX_BLOCK_SIZE: u32 = 16384;
+
+    pub fn new(index: u32, hash: PieceHash, length: u32) -> Self {
+        let begin = index * length;
+        let end = begin + length;
+
+        Piece {
+            index,
+            hash,
+            length,
+            begin,
+            end
+        }
+    }
+
+    fn try_download(&self, conn: &mut Connection) -> Result<Vec<u8>, Box<dyn Error + '_>> {
+        let mut state = DownloadPieceState::new(self.index, self.length);
+        let mut block_size = Self::MAX_BLOCK_SIZE;
+
+        while state.downloaded < self.length {
+            if !conn.chocked {
+                while state.concurrent_requests < DownloadPieceState::MAX_CONCURRENT_REQUESTS && state.requested < self.length {
+                    if self.length - state.requested < Self::MAX_BLOCK_SIZE {
+                        block_size = self.length - state.requested;
+                    }
+
+                    state.send_request(block_size, conn)?;
+                }
+            }
+
+            state.read_message(conn)?;
+        }
+
+        self.check_integrity(hash_sha1(&state.buf))?;
+        println!("Piece {} finished", &self.index);
+
+        Ok(state.buf)
+    }
+
+    fn check_integrity(&self, hash: PieceHash) -> Result<(), IntegrityError> {
+        if self.hash.eq(&hash) {
+            println!("Correct hash");
+
+            Ok(())
+        } else {
+            Err(IntegrityError(&self.hash, hash))
+        }
+    }
+}
+
 impl DownloadPieceState {
     const MAX_CONCURRENT_REQUESTS: u8 = 5;
 
@@ -159,6 +210,15 @@ fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
     hasher.result().to_vec()
 }
 
+#[derive(Debug)]
+struct IntegrityError<'a>(&'a PieceHash, PieceHash);
+
+impl<'a> fmt::Display for IntegrityError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Incorrect piece hash, Expected hash: {:?} but got {:?}", self.0, self.1)
+    }
+}
+impl<'a> Error for IntegrityError<'a> {}
 
 #[cfg(test)]
 mod tests {
