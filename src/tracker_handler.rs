@@ -11,12 +11,13 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::torrent::Torrent;
 
 struct PeerVecVisitor;
-#[derive(Debug, Deserialize)]
+
+#[derive(Deserialize)]
 pub struct Peer {
     pub ip: Ipv4Addr,
     pub port: u16
 }
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct TrackerResponse {
     interval: u32,
     #[serde(deserialize_with = "Peer::vec_from_bytes")]
@@ -76,7 +77,6 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
 
     Ok(tracker_response)
 }
-
 
 #[cfg(test)]
 mod tests {

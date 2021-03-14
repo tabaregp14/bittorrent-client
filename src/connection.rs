@@ -8,7 +8,6 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::tracker_handler::Peer;
 use crate::message::Message;
 
-#[derive(Debug)]
 pub struct Handshake {
     pstr: String,
     info_hash: Vec<u8>,
