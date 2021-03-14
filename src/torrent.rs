@@ -30,17 +30,12 @@ pub struct Torrent {
     piece_length: u64
 }
 
-impl TorrentInfo {
-    fn hash(&self) -> Result<Vec<u8>, serde_bencode::Error> {
-        let bytes = serde_bencode::to_bytes(self)?;
-        Ok(hash_sha1(&bytes))
-    }
-}
-
 impl BencodeTorrent {
     fn to_torrent(self) -> Result<Torrent, serde_bencode::Error> {
+        let info_bytes = serde_bencode::to_bytes(&self.info)?;
+
         Ok(Torrent {
-            info_hash: self.info.hash()?,
+            info_hash: hash_sha1(&info_bytes),
             name: self.info.name,
             announce: self.announce,
             length: self.info.length,
