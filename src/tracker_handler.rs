@@ -35,20 +35,6 @@ impl Peer {
     fn vec_from_bytes<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Peer>, D::Error> {
         d.deserialize_byte_buf(PeerVecVisitor)
     }
-
-    pub fn has_piece(bitfield: &Vec<u8>, index: &u32) -> bool {
-        let byte_index = index / 8;
-        let offset = index % 8;
-
-        bitfield[byte_index as usize] & (1 << (7 - offset)) != 0
-    }
-
-    pub fn set_piece(bitfield: &mut Vec<u8>, index: &u32) {
-        let byte_index = index / 8;
-        let offset = index % 8;
-
-        bitfield[byte_index as usize] |= 1 << (7 - offset);
-    }
 }
 
 impl <'de> Visitor<'de> for PeerVecVisitor {

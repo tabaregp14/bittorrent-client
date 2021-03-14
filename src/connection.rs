@@ -106,6 +106,22 @@ impl Connection {
         }
     }
 
+    pub fn has_piece(&self, index: &u32) -> bool {
+        let bitfield = self.bitfield.to_owned().expect("Bitfield not found");
+        let byte_index = index / 8;
+        let offset = index % 8;
+
+        bitfield[byte_index as usize] & (1 << (7 - offset)) != 0
+    }
+
+    pub fn set_piece(&mut self, index: &u32) {
+        let bitfield = self.bitfield.as_mut().expect("Bitfield not found");
+        let byte_index = index / 8;
+        let offset = index % 8;
+
+        bitfield[byte_index as usize] |= 1 << (7 - offset);
+    }
+
     fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
         let hs = Handshake::new(self.info_hash.to_owned(), self.peer_id.to_owned());
 
