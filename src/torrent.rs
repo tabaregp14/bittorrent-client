@@ -6,28 +6,56 @@ use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
 
-#[derive(Debug, Deserialize, Serialize)]
+type PieceHash = Vec<u8>;
+
+#[derive(Deserialize, Serialize)]
 struct TorrentInfo {
     name: String,
-    length: u64,
+    files: Option<Vec<TorrentSubFile>>,
+    length: Option<u64>,
     #[serde(rename = "piece length")]
-    piece_length: u64,
+    piece_length: u32,
     pieces: ByteBuf
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct BencodeTorrent {
     announce: String,
     info: TorrentInfo
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize, Serialize)]
+pub struct TorrentSubFile {
+    pub path: Vec<String>,
+    length: u64
+}
+
+#[derive(Deserialize)]
 pub struct Torrent {
-    name: String,
+    pub name: String,
     pub announce: String,
     pub info_hash: Vec<u8>,
-    pub length: u64,
-    piece_length: u64
+    pub files: Option<Vec<TorrentSubFile>>,
+    pub pieces: Vec<PieceHash>,
+    pub piece_length: u32,
+    length: Option<u64> // file size
+}
+
+#[derive(Clone)]
+struct Piece {
+    index: u32,
+    hash: PieceHash,
+    length: u32, // piece size
+    begin: u32,
+    end: u32
+}
+
+struct DownloadPieceState {
+    index: u32,
+    requested: u32,
+    downloaded: u32,
+    buf: Vec<u8>,
+    concurrent_requests: u8
 }
 
 impl BencodeTorrent {
@@ -38,8 +66,12 @@ impl BencodeTorrent {
             info_hash: hash_sha1(&info_bytes),
             name: self.info.name,
             announce: self.announce,
+            files: self.info.files,
             length: self.info.length,
-            piece_length: self.info.piece_length
+            piece_length: self.info.piece_length,
+            pieces: self.info.pieces.chunks(20)
+                .map(|s| s.to_vec())
+                .collect()
         })
     }
 }
