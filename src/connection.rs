@@ -163,8 +163,3 @@ impl fmt::Display for IncorrectHash {
 }
 
 impl Error for IncorrectHash {}
-
-#[cfg(test)]
-mod tests {
-
-}

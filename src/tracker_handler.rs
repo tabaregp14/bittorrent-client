@@ -77,8 +77,3 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
 
     Ok(tracker_response)
 }
-
-#[cfg(test)]
-mod tests {
-
-}

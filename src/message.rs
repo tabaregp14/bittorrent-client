@@ -98,9 +98,3 @@ impl Message {
         message
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-
-}
