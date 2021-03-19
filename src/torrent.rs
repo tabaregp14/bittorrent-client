@@ -55,10 +55,19 @@ struct Piece {
 
 struct DownloadPieceState {
     index: u32,
-    requested: u32,
-    downloaded: u32,
-    buf: Vec<u8>,
-    concurrent_requests: u8
+    begin: u32,
+    requested_blocks: Vec<Block>,
+    blocks_done: u8,
+    block_queue: Vec<Block>,
+    buf: Vec<u8>
+}
+
+struct Block {
+    index: u32,
+    begin: u32,
+    end: u32,
+    length: u32,
+    data: Option<Vec<u8>>
 }
 
 impl BencodeTorrent {
@@ -209,13 +218,14 @@ impl Piece {
 impl DownloadPieceState {
     const MAX_CONCURRENT_REQUESTS: u8 = 5;
 
-    fn new(index: u32, length: u32) -> DownloadPieceState {
+    fn new(piece: &Piece) -> DownloadPieceState {
         DownloadPieceState {
-            index,
-            requested: 0,
-            downloaded: 0,
-            buf: vec![0; length as usize],
-            concurrent_requests: 0
+            index: piece.index,
+            begin: piece.begin,
+            requested_blocks: Vec::new(),
+            buf: vec![0; piece.length as usize],
+            block_queue: piece.create_block_queue(),
+            blocks_done: 0
         }
     }
 
@@ -263,8 +273,18 @@ impl DownloadPieceState {
             _ => {
                 println!("Other message");
 
-                Ok(())
-            }
+        Ok(())
+    }
+}
+
+impl Block {
+    fn new(index: u32, begin: u32, end: u32, length: u32) -> Block {
+        Block {
+            index,
+            begin,
+            end,
+            length,
+            data: None
         }
     }
 }
