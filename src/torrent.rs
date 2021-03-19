@@ -277,6 +277,29 @@ fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
     hasher.result().to_vec()
 }
 
+impl fmt::Display for Torrent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut files_names = Vec::new();
+
+        match &self.files {
+            Some(files) => {
+                files_names = files.into_iter()
+                    .map(|f| &f.path[&f.path.len() - 1])
+                    .collect::<Vec<&String>>();
+            },
+            None => files_names.push(&self.name)
+        }
+
+        write!(f, "----Name: {}\n----Files: {:?}\n----Size: {}\n----Number of pieces: {}\n----Size of pieces: {}",
+               self.name,
+               files_names,
+               self.calculate_length(),
+               self.pieces.len(),
+               self.piece_length
+        )
+    }
+}
+
 #[derive(Debug)]
 struct IntegrityError<'a>(&'a PieceHash, PieceHash);
 
