@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::{fs, fmt, io};
+use std::{fs, fmt, io, thread};
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_bencode;
@@ -263,42 +263,57 @@ impl DownloadPieceState {
         Ok(())
     }
 
-    fn read_message(&mut self, conn: &mut Connection) -> Result<(), io::Error> {
-        match conn.read()? {
-            Message::Piece(index, begin, block) => {
-                let length = (&block.len() + 0) as u32;
-
+    fn read_message(&mut self, conn: &mut Connection) -> Option<Block> {
+        match conn.read().ok()? {
+            Message::Piece(index, begin, block_data) => {
                 if index != self.index {
-                    println!("Expected piece ID {} but got {}", &self.index, &index);
+                    println!("Thread [{:?}]: Expected piece ID {} but got {}", thread::current().name().unwrap(), &self.index, &index);
 
-                    self.concurrent_requests -= 1;
-                    return Ok(());
+                    return None;
                 }
 
-                self.buf.splice(begin as usize..begin as usize + block.len(), block);
-                self.downloaded += length as u32;
-                self.concurrent_requests -= 1;
+                let block_index = self.requested_blocks.iter().position(|b| b.begin == begin);
 
-                Ok(())
+                match block_index {
+                    Some(block_index) => {
+                        let mut block = self.requested_blocks.remove(block_index);
+
+                        self.blocks_done += 1;
+                        block.data = Some(block_data);
+
+                        Some(block)
+                    }
+                    None => {
+                        println!("Thread [{:?}]: Received block was not requested", thread::current().name().unwrap());
+
+                        None
+                    }
+                }
             },
             Message::Have(index) => {
                 println!("Have: {}", &index);
                 conn.set_piece(&index);
-                self.concurrent_requests -= 1;
 
-                Ok(())
+                None
             },
             Message::Choke => {
-                println!("Choked");
+                println!("Thread [{:?}]: Choked", thread::current().name().unwrap());
                 conn.chocked = true;
-                self.concurrent_requests -= 1;
 
-                Ok(())
+                None
+            },
+            Message::Unchoke => {
+                println!("Thread [{:?}]: Unchoked", thread::current().name().unwrap());
+                conn.chocked = false;
+
+                None
             },
             _ => {
-                println!("Other message");
+                println!("Thread [{:?}]: Other message", thread::current().name().unwrap());
 
-        Ok(())
+                None
+            }
+        }
     }
 }
 
