@@ -9,6 +9,7 @@ use crate::message::Message;
 use crate::connection::Connection;
 use std::sync::Mutex;
 use std::fs::File;
+use std::io::{Write, Seek, SeekFrom};
 
 type PieceHash = Vec<u8>;
 type DownloadedTorrent = Vec<u8>;
@@ -314,6 +315,18 @@ impl DownloadPieceState {
                 None
             }
         }
+    }
+
+    // TODO: handle Option
+    fn store_in_buffer(&mut self, block: Block) {
+        self.buf.splice(block.begin as usize..block.end as usize, block.data.unwrap());
+    }
+
+    fn copy_to_file(&self, file: &mut File) -> Result<(), io::Error> {
+        file.seek(SeekFrom::Start(self.begin as u64))?;
+        file.write_all(&self.buf)?;
+
+        Ok(())
     }
 }
 
