@@ -383,7 +383,29 @@ impl<'a> fmt::Display for IntegrityError<'a> {
 }
 impl<'a> Error for IntegrityError<'a> {}
 
-#[cfg(test)]
-mod tests {
+#[derive(Debug)]
+enum DownloadPieceError<'a> {
+    WrongHash(IntegrityError<'a>),
+    IOError(io::Error)
+}
 
+impl<'a> fmt::Display for DownloadPieceError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DownloadPieceError::WrongHash(e) =>
+                write!(f, "{}", e),
+            DownloadPieceError::IOError(..) =>
+                write!(f, "Error sending message")
+        }
+    }
+}
+impl<'a> From<IntegrityError<'a>> for DownloadPieceError<'a> {
+    fn from(err: IntegrityError) -> DownloadPieceError {
+        DownloadPieceError::WrongHash(err)
+    }
+}
+impl<'a> From<io::Error> for DownloadPieceError<'a> {
+    fn from(err: io::Error) -> DownloadPieceError<'a> {
+        DownloadPieceError::IOError(err)
+    }
 }
