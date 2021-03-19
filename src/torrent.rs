@@ -7,6 +7,8 @@ use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
 use crate::message::Message;
 use crate::connection::Connection;
+use std::sync::Mutex;
+use std::fs::File;
 
 type PieceHash = Vec<u8>;
 type DownloadedTorrent = Vec<u8>;
@@ -42,6 +44,14 @@ pub struct Torrent {
     pub pieces: Vec<PieceHash>,
     pub piece_length: u32,
     length: Option<u64> // file size
+}
+
+pub struct DownloadTorrentState {
+    // pub peer_id: Vec<u8>,
+    piece_queue: Mutex<Vec<Piece>>,
+    done_pieces: Mutex<u32>,
+    length: u32,
+    file: Mutex<File>
 }
 
 #[derive(Clone)]
@@ -160,6 +170,23 @@ impl Torrent {
                 .unwrap()
                 .iter()
                 .fold(0, |acc, file| acc + file.length)
+        }
+    }
+}
+
+impl DownloadTorrentState {
+    pub const MAX_CONCURRENT_PEERS: u8 = 20;
+
+    pub fn new(torrent: &Torrent) -> DownloadTorrentState {
+        let file = File::create(&torrent.name).unwrap();
+
+        file.set_len(torrent.calculate_length()).unwrap();
+
+        DownloadTorrentState {
+            done_pieces: Mutex::new(0),
+            piece_queue: Mutex::new(torrent.create_piece_queue()),
+            length: torrent.pieces.len() as u32,
+            file: Mutex::new(file)
         }
     }
 }
