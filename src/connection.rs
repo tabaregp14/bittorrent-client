@@ -9,7 +9,7 @@ use crate::tracker_handler::Peer;
 use crate::message::Message;
 
 pub struct Handshake {
-    pstr: String,
+    pstr: String, // protocol identifier ("BitTorrent protocol")
     info_hash: Vec<u8>,
     peer_id: Vec<u8>
 }
@@ -144,8 +144,6 @@ impl Connection {
         let res_hs = self.receive_handshake()?;
 
         if hs.info_hash.eq(&res_hs.info_hash) {
-            println!("Successful handshake.");
-
             Ok(res_hs)
         } else {
             Err(Box::new(IncorrectHash(hs.info_hash, res_hs.info_hash)))
