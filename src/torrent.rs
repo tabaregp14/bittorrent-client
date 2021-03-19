@@ -256,11 +256,9 @@ impl DownloadPieceState {
         }
     }
 
-    fn send_request(&mut self, block_size: u32, conn: &mut Connection) -> Result<(), io::Error> {
-        conn.send(Message::Request(self.index, self.requested, block_size))?;
-
-        self.requested += block_size;
-        self.concurrent_requests += 1;
+    fn send_request(&mut self, block: Block, conn: &mut Connection) -> Result<(), io::Error> {
+        conn.send(Message::Request(self.index, block.begin, block.length))?;
+        self.requested_blocks.push(block);
 
         Ok(())
     }
