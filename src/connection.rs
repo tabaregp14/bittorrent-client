@@ -24,10 +24,12 @@ pub struct Connection {
     peer_id: Vec<u8>
 }
 
-impl Handshake {
+impl<'a> Handshake {
+    const PROTOCOL_IDENTIFIER: &'a str = "BitTorrent protocol";
+
     fn new(info_hash: Vec<u8>, peer_id: Vec<u8>) -> Handshake {
         Handshake {
-            pstr: String::from("BitTorrent protocol"),
+            pstr: String::from(Self::PROTOCOL_IDENTIFIER),
             info_hash,
             peer_id
         }
