@@ -227,6 +227,26 @@ impl Piece {
         }
     }
 
+    fn create_block_queue(&self) -> Vec<Block> {
+        let mut block_queue = Vec::<Block>::new();
+        let mut block_length = Self::MAX_BLOCK_SIZE;
+        let num_of_blocks = (self.length as f32 / Self::MAX_BLOCK_SIZE as f32).ceil() as u32;
+
+        for i in 0..num_of_blocks {
+            if i == num_of_blocks - 1 && self.length % block_length > 0 {
+                block_length = self.length % block_length;
+            }
+
+            let begin = i * Self::MAX_BLOCK_SIZE;
+            let end = begin + block_length;
+            let block = Block::new(i, begin, end, block_length);
+
+            block_queue.push(block);
+        }
+
+        block_queue
+    }
+
     fn try_download(&self, conn: &mut Connection) -> Result<DownloadPieceState, DownloadPieceError> {
         let mut state = DownloadPieceState::new(self);
 
