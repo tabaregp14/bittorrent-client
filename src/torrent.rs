@@ -227,28 +227,28 @@ impl Piece {
         }
     }
 
-    fn try_download(&self, conn: &mut Connection) -> Result<Vec<u8>, Box<dyn Error + '_>> {
-        let mut state = DownloadPieceState::new(self.index, self.length);
-        let mut block_size = Self::MAX_BLOCK_SIZE;
+    fn try_download(&self, conn: &mut Connection) -> Result<DownloadPieceState, DownloadPieceError> {
+        let mut state = DownloadPieceState::new(self);
 
-        while state.downloaded < self.length {
+        while !state.block_queue.is_empty() || !state.requested_blocks.is_empty() {
             if !conn.chocked {
-                while state.concurrent_requests < DownloadPieceState::MAX_CONCURRENT_REQUESTS && state.requested < self.length {
-                    if self.length - state.requested < Self::MAX_BLOCK_SIZE {
-                        block_size = self.length - state.requested;
+                while state.requested_blocks.len() < DownloadPieceState::MAX_CONCURRENT_REQUESTS as usize && !state.block_queue.is_empty() {
+                    match state.block_queue.pop() {
+                        Some(b) => state.send_request(b, conn)?,
+                        None => println!("Empty block queue")
                     }
-
-                    state.send_request(block_size, conn)?;
                 }
             }
 
-            state.read_message(conn)?;
+            match state.read_message(conn) {
+                Some(block) => state.store_in_buffer(block),
+                None => println!("MESSAGE IS NOT A PIECE")
+            }
         }
 
         self.check_integrity(hash_sha1(&state.buf))?;
-        println!("Piece {} finished", &self.index);
 
-        Ok(state.buf)
+        Ok(state)
     }
 
     fn check_integrity(&self, hash: PieceHash) -> Result<(), IntegrityError> {
