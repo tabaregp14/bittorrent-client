@@ -190,6 +190,22 @@ impl DownloadTorrentState {
             file: Mutex::new(file)
         }
     }
+
+    pub fn is_done(&self) -> bool {
+        let done_pieces = self.done_pieces.lock().unwrap();
+
+        if *done_pieces >= self.length {
+            return true;
+        }
+
+        false
+    }
+
+    fn get_piece_from_queue(&self) -> Option<Piece> {
+        let mut piece_queue = self.piece_queue.lock().unwrap();
+
+        piece_queue.pop()
+    }
 }
 
 impl Piece {
