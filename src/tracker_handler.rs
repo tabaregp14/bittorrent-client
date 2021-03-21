@@ -1,12 +1,12 @@
-use reqwest;
-use reqwest::Url;
 use std::time::Duration;
 use std::error::Error;
-use percent_encoding::percent_encode_byte;
 use std::net::Ipv4Addr;
+use core::fmt;
+use reqwest;
+use reqwest::Url;
+use percent_encoding::percent_encode_byte;
 use serde::{Deserialize, Deserializer, de};
 use serde::de::Visitor;
-use core::fmt;
 use byteorder::{BigEndian, ByteOrder};
 use crate::torrent::Torrent;
 

@@ -1,15 +1,15 @@
 use std::error::Error;
 use std::{fs, fmt, io, thread};
 use std::path::Path;
+use std::sync::Mutex;
+use std::fs::File;
+use std::io::{Write, Seek, SeekFrom};
 use serde::{Deserialize, Serialize};
 use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
 use crate::message::Message;
 use crate::connection::Connection;
-use std::sync::Mutex;
-use std::fs::File;
-use std::io::{Write, Seek, SeekFrom};
 
 type PieceHash = Vec<u8>;
 type DownloadedTorrent = Vec<u8>;
