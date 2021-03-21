@@ -108,8 +108,8 @@ impl Torrent {
         Ok(torrent)
     }
 
-    fn create_pieces_queue(&self) -> Vec<Piece> {
-        let mut work_queue = Vec::<Piece>::new();
+    fn create_piece_queue(&self) -> Vec<Piece> {
+        let mut piece_queue = Vec::<Piece>::new();
         let piece_length = self.piece_length as u64;
         let mut length = piece_length;
 
@@ -117,51 +117,16 @@ impl Torrent {
             if index == self.pieces.len() - 1 && self.calculate_length() % piece_length > 0 {
                 length = self.calculate_length() % piece_length;
             }
+
             let piece = Piece::new(index as u32,
-                                   hash.to_owned(),
-                                   length as u32);
+                                   (index * piece_length as usize) as u32,
+                                   length as u32,
+                                   hash.to_owned());
 
-            work_queue.push(piece);
+            piece_queue.push(piece);
         }
 
-        work_queue
-    }
-
-    pub fn download(&self, conn: &mut Connection) -> DownloadedTorrent {
-        let mut buf = vec![0; self.calculate_length() as usize];
-        let mut work_queue = self.create_pieces_queue();
-        let mut done_pieces = 0;
-
-        while done_pieces < self.pieces.len() {
-            let work_piece = work_queue.pop().unwrap();
-
-            if !conn.has_piece(&work_piece.index) {
-                println!("Peer doesn't have piece {}", &work_piece.index);
-
-                work_queue.push(work_piece);
-
-                continue;
-            }
-
-            println!("DOWNLOADING PIECE: {}", &work_piece.index);
-            let piece_result = work_piece.try_download(conn);
-
-            match piece_result {
-                Ok(piece) => {
-                    buf.splice(work_piece.begin as usize..work_piece.end as usize, piece);
-                    done_pieces += 1;
-
-                    println!("Done pieces: {} / {}", &done_pieces, &self.pieces.len());
-                }
-                Err(e) => {
-                    println!("ERROR: {}", e);
-
-                    work_queue.push(work_piece.to_owned());
-                }
-            }
-        }
-
-        buf
+        piece_queue
     }
 
     pub fn calculate_length(&self) -> u64 {
@@ -201,6 +166,45 @@ impl DownloadTorrentState {
         false
     }
 
+    pub fn download(&self, conn: &mut Connection) {
+        while !self.is_done() {
+            match self.get_piece_from_queue() {
+                Some(work_piece) => {
+                    if !conn.has_piece(&work_piece.index) {
+                        println!("Thread [{:?}]: Peer doesn't have piece {}", thread::current().name().unwrap(), &work_piece.index);
+                        let mut pieces_queue = self.piece_queue.lock().unwrap();
+
+                        pieces_queue.push(work_piece);
+
+                        continue;
+                    }
+
+                    println!("Thread [{:?}]: DOWNLOADING PIECE: {}", thread::current().name().unwrap(), &work_piece.index);
+                    let piece_result = work_piece.try_download(conn);
+
+                    match piece_result {
+                        Ok(piece) => {
+                            let mut done_pieces = self.done_pieces.lock().unwrap();
+                            let mut file = self.file.lock().unwrap();
+
+                            piece.copy_to_file(&mut *file).unwrap();
+                            *done_pieces += 1;
+
+                            println!("Thread [{:?}]: Piece {} finished. Done pieces: {} / {}",thread::current().name().unwrap() , &work_piece.index, &done_pieces, &self.length);
+                        }
+                        Err(e) => {
+                            println!("Thread [{:?}] ERROR: {}", thread::current().name().unwrap(), e);
+                            let mut pieces_queue = self.piece_queue.lock().unwrap();
+
+                            pieces_queue.push(work_piece.to_owned());
+                        }
+                    }
+                },
+                None => break
+            }
+        }
+    }
+
     fn get_piece_from_queue(&self) -> Option<Piece> {
         let mut piece_queue = self.piece_queue.lock().unwrap();
 
@@ -211,8 +215,7 @@ impl DownloadTorrentState {
 impl Piece {
     const MAX_BLOCK_SIZE: u32 = 16384;
 
-    pub fn new(index: u32, hash: PieceHash, length: u32) -> Self {
-        let begin = index * length;
+    fn new(index: u32, begin: u32, length: u32, hash: PieceHash) -> Self {
         let end = begin + length;
 
         Piece {
