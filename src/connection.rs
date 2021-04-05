@@ -21,7 +21,7 @@ pub struct Connection {
     pub bitfield: Option<Vec<u8>>,
     peer: Peer,
     info_hash: Vec<u8>,
-    peer_id: Vec<u8>
+    client_peer_id: Vec<u8>
 }
 
 impl<'a> Handshake {
@@ -63,7 +63,7 @@ impl<'a> Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: &Vec<u8>, peer_id: &Vec<u8>) -> Result<Connection, Box<dyn Error>> {
+    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection, Box<dyn Error>> {
         let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
         let mut conn = Connection {
@@ -73,7 +73,7 @@ impl Connection {
             bitfield: None,
             peer,
             info_hash: info_hash.to_owned(),
-            peer_id: peer_id.to_owned()
+            client_peer_id: client_peer_id.to_owned()
         };
 
         conn.stream.set_write_timeout(Some(Duration::from_secs(5)))?;
@@ -124,7 +124,7 @@ impl Connection {
     }
 
     fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
-        let hs = Handshake::new(self.info_hash.to_owned(), self.peer_id.to_owned());
+        let hs = Handshake::new(self.info_hash.to_owned(), self.client_peer_id.to_owned());
 
         self.stream.write_all(&hs.as_bytes().as_slice())?;
 
