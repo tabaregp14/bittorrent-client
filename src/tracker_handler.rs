@@ -58,12 +58,14 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
         .map(|b| percent_encode_byte(*b))
         .collect::<String>();
     let base_url = format!("{}?info_hash={}&peer_id={}", torrent.announce, url_hash, peer_id_es);
-    let url = Url::parse_with_params(base_url.as_str(),
-                                     &[("port", port.to_string()),
-                                         ("uploaded", "0".to_string()),
-                                         ("downloaded", "0".to_string()),
-                                         ("compact", "1".to_string()),
-                                         ("left", torrent.calculate_length().to_string())])?;
+    let url_params = [
+        ("port", port.to_string()),
+        ("uploaded", "0".to_string()),
+        ("downloaded", "0".to_string()),
+        ("compact", "1".to_string()),
+        ("left", torrent.calculate_length().to_string())
+    ];
+    let url = Url::parse_with_params(base_url.as_str(),&url_params)?;
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()?;
