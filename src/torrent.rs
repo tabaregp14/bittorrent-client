@@ -31,8 +31,8 @@ struct BencodeTorrent {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct TorrentSubFile {
-    pub path: Vec<String>,
+struct TorrentSubFile {
+    path: Vec<String>,
     length: u64
 }
 
