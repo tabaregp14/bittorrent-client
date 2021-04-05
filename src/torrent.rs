@@ -260,7 +260,7 @@ impl Piece {
                 }
             }
 
-            match state.read_message(conn) {
+            match state.read_message(conn)? {
                 Some(block) => state.store_in_buffer(block),
                 None => println!("MESSAGE IS NOT A PIECE")
             }
@@ -303,13 +303,13 @@ impl DownloadPieceState {
         Ok(())
     }
 
-    fn read_message(&mut self, conn: &mut Connection) -> Option<Block> {
-        match conn.read().ok()? {
+    fn read_message(&mut self, conn: &mut Connection) -> Result<Option<Block>, io::Error> {
+        match conn.read()? {
             Message::Piece(index, begin, block_data) => {
                 if index != self.index {
                     println!("Thread [{:?}]: Expected piece ID {} but got {}", thread::current().name().unwrap(), &self.index, &index);
 
-                    return None;
+                    return Ok(None);
                 }
 
                 let block_index = self.requested_blocks.iter().position(|b| b.begin == begin);
@@ -321,12 +321,12 @@ impl DownloadPieceState {
                         self.blocks_done += 1;
                         block.data = Some(block_data);
 
-                        Some(block)
-                    }
+                        Ok(Some(block))
+                    },
                     None => {
                         println!("Thread [{:?}]: Received block was not requested", thread::current().name().unwrap());
 
-                        None
+                        Ok(None)
                     }
                 }
             },
@@ -334,24 +334,24 @@ impl DownloadPieceState {
                 println!("Have: {}", &index);
                 conn.set_piece(&index);
 
-                None
+                Ok(None)
             },
             Message::Choke => {
                 println!("Thread [{:?}]: Choked", thread::current().name().unwrap());
                 conn.chocked = true;
 
-                None
+                Ok(None)
             },
             Message::Unchoke => {
                 println!("Thread [{:?}]: Unchoked", thread::current().name().unwrap());
                 conn.chocked = false;
 
-                None
+                Ok(None)
             },
             _ => {
                 println!("Thread [{:?}]: Other message", thread::current().name().unwrap());
 
-                None
+                Ok(None)
             }
         }
     }
