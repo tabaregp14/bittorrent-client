@@ -1,18 +1,12 @@
 use std::error::Error;
-use std::{fs, fmt, io, thread};
+use std::{fs, fmt};
 use std::path::Path;
-use std::sync::Mutex;
-use std::fs::File;
-use std::io::{Write, Seek, SeekFrom};
 use serde::{Deserialize, Serialize};
 use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
-use crate::message::Message;
-use crate::connection::Connection;
 
 type PieceHash = Vec<u8>;
-type DownloadedTorrent = Vec<u8>;
 
 #[derive(Deserialize, Serialize)]
 struct TorrentInfo {
@@ -31,7 +25,7 @@ struct BencodeTorrent {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct TorrentSubFile {
+struct TorrentSubFile {
     path: Vec<String>,
     length: u64
 }
@@ -40,44 +34,28 @@ pub struct TorrentSubFile {
 pub struct Torrent {
     pub announce: String,
     pub info_hash: Vec<u8>,
-    name: String,
+    pub name: String,
+    pub pieces: Vec<PieceHash>,
     files: Option<Vec<TorrentSubFile>>,
-    pieces: Vec<PieceHash>,
     piece_length: u32,
     length: Option<u64> // file size
-}
-
-pub struct DownloadTorrentState {
-    pub piece_queue: Mutex<Vec<Piece>>,
-    pub done_pieces: Mutex<u32>,
-    pub length: u32,
-    pub file: Mutex<File>
 }
 
 #[derive(Clone)]
 pub struct Piece {
     pub index: u32,
+    pub length: u32, // piece size
+    pub begin: u32,
     hash: PieceHash,
-    length: u32, // piece size
-    begin: u32,
     end: u32
 }
 
-pub struct DownloadPieceState {
-    index: u32,
-    begin: u32,
-    requested_blocks: Vec<Block>,
-    blocks_done: u8,
-    block_queue: Vec<Block>,
-    buf: Vec<u8>
-}
-
-struct Block {
-    index: u32,
-    begin: u32,
-    end: u32,
-    length: u32,
-    data: Option<Vec<u8>>
+pub struct Block {
+    // index: u32,
+    pub begin: u32,
+    pub end: u32,
+    pub length: u32,
+    pub data: Option<Vec<u8>>
 }
 
 impl BencodeTorrent {
@@ -107,7 +85,7 @@ impl Torrent {
         Ok(torrent)
     }
 
-    fn create_piece_queue(&self) -> Vec<Piece> {
+    pub fn create_piece_queue(&self) -> Vec<Piece> {
         let mut piece_queue = Vec::<Piece>::new();
         let piece_length = self.piece_length as u64;
         let mut length = piece_length;
@@ -139,78 +117,6 @@ impl Torrent {
     }
 }
 
-impl DownloadTorrentState {
-    pub const MAX_CONCURRENT_PEERS: u8 = 20;
-
-    pub fn new(torrent: &Torrent) -> DownloadTorrentState {
-        let file = File::create(&torrent.name).unwrap();
-
-        file.set_len(torrent.calculate_length()).unwrap();
-
-        DownloadTorrentState {
-            done_pieces: Mutex::new(0),
-            piece_queue: Mutex::new(torrent.create_piece_queue()),
-            length: torrent.pieces.len() as u32,
-            file: Mutex::new(file)
-        }
-    }
-
-    pub fn is_done(&self) -> bool {
-        let done_pieces = self.done_pieces.lock().unwrap();
-
-        if *done_pieces >= self.length {
-            return true;
-        }
-
-        false
-    }
-
-    pub fn download(&self, conn: &mut Connection) {
-        while !self.is_done() {
-            match self.get_piece_from_queue() {
-                Some(work_piece) => {
-                    if !conn.has_piece(&work_piece.index) {
-                        println!("Thread [{:?}]: Peer doesn't have piece {}", thread::current().name().unwrap(), &work_piece.index);
-                        let mut pieces_queue = self.piece_queue.lock().unwrap();
-
-                        pieces_queue.push(work_piece);
-
-                        continue;
-                    }
-
-                    println!("Thread [{:?}]: DOWNLOADING PIECE: {}", thread::current().name().unwrap(), &work_piece.index);
-                    let piece_result = work_piece.try_download(conn);
-
-                    match piece_result {
-                        Ok(piece) => {
-                            let mut done_pieces = self.done_pieces.lock().unwrap();
-                            let mut file = self.file.lock().unwrap();
-
-                            piece.copy_to_file(&mut *file).unwrap();
-                            *done_pieces += 1;
-
-                            println!("Thread [{:?}]: Piece {} finished. Done pieces: {} / {}",thread::current().name().unwrap() , &work_piece.index, &done_pieces, &self.length);
-                        }
-                        Err(e) => {
-                            println!("Thread [{:?}] ERROR: {}", thread::current().name().unwrap(), e);
-                            let mut pieces_queue = self.piece_queue.lock().unwrap();
-
-                            pieces_queue.push(work_piece.to_owned());
-                        }
-                    }
-                },
-                None => break
-            }
-        }
-    }
-
-    fn get_piece_from_queue(&self) -> Option<Piece> {
-        let mut piece_queue = self.piece_queue.lock().unwrap();
-
-        piece_queue.pop()
-    }
-}
-
 impl Piece {
     const MAX_BLOCK_SIZE: u32 = 16384;
 
@@ -226,7 +132,7 @@ impl Piece {
         }
     }
 
-    fn create_block_queue(&self) -> Vec<Block> {
+    pub fn create_block_queue(&self) -> Vec<Block> {
         let mut block_queue = Vec::<Block>::new();
         let mut block_length = Self::MAX_BLOCK_SIZE;
         let num_of_blocks = (self.length as f32 / Self::MAX_BLOCK_SIZE as f32).ceil() as u32;
@@ -238,7 +144,7 @@ impl Piece {
 
             let begin = i * Self::MAX_BLOCK_SIZE;
             let end = begin + block_length;
-            let block = Block::new(i, begin, end, block_length);
+            let block = Block::new(/*i,*/ begin, end, block_length);
 
             block_queue.push(block);
         }
@@ -246,34 +152,8 @@ impl Piece {
         block_queue
     }
 
-    fn try_download(&self, conn: &mut Connection) -> Result<DownloadPieceState, DownloadPieceError> {
-        let mut state = DownloadPieceState::new(self);
-
-        while !state.block_queue.is_empty() || !state.requested_blocks.is_empty() {
-            if !conn.chocked {
-                while state.requested_blocks.len() < DownloadPieceState::MAX_CONCURRENT_REQUESTS as usize && !state.block_queue.is_empty() {
-                    match state.block_queue.pop() {
-                        Some(b) => state.send_request(b, conn)?,
-                        None => println!("Empty block queue")
-                    }
-                }
-            }
-
-            match state.read_message(conn)? {
-                Some(block) => state.store_in_buffer(block),
-                None => println!("MESSAGE IS NOT A PIECE")
-            }
-        }
-
-        self.check_integrity(hash_sha1(&state.buf))?;
-
-        Ok(state)
-    }
-
-    fn check_integrity(&self, hash: PieceHash) -> Result<(), IntegrityError> {
+    pub fn check_integrity(&self, hash: PieceHash) -> Result<(), IntegrityError> {
         if self.hash.eq(&hash) {
-            println!("Correct hash");
-
             Ok(())
         } else {
             Err(IntegrityError(&self.hash, hash))
@@ -281,97 +161,10 @@ impl Piece {
     }
 }
 
-impl DownloadPieceState {
-    const MAX_CONCURRENT_REQUESTS: u8 = 5;
-
-    fn new(piece: &Piece) -> DownloadPieceState {
-        DownloadPieceState {
-            index: piece.index,
-            begin: piece.begin,
-            requested_blocks: Vec::new(),
-            buf: vec![0; piece.length as usize],
-            block_queue: piece.create_block_queue(),
-            blocks_done: 0
-        }
-    }
-
-    fn send_request(&mut self, block: Block, conn: &mut Connection) -> Result<(), io::Error> {
-        conn.send(Message::Request(self.index, block.begin, block.length))?;
-        self.requested_blocks.push(block);
-
-        Ok(())
-    }
-
-    fn read_message(&mut self, conn: &mut Connection) -> Result<Option<Block>, io::Error> {
-        match conn.read()? {
-            Message::Piece(index, begin, block_data) => {
-                if index != self.index {
-                    println!("Thread [{:?}]: Expected piece ID {} but got {}", thread::current().name().unwrap(), &self.index, &index);
-
-                    return Ok(None);
-                }
-
-                let block_index = self.requested_blocks.iter().position(|b| b.begin == begin);
-
-                match block_index {
-                    Some(block_index) => {
-                        let mut block = self.requested_blocks.remove(block_index);
-
-                        self.blocks_done += 1;
-                        block.data = Some(block_data);
-
-                        Ok(Some(block))
-                    },
-                    None => {
-                        println!("Thread [{:?}]: Received block was not requested", thread::current().name().unwrap());
-
-                        Ok(None)
-                    }
-                }
-            },
-            Message::Have(index) => {
-                println!("Have: {}", &index);
-                conn.set_piece(&index);
-
-                Ok(None)
-            },
-            Message::Choke => {
-                println!("Thread [{:?}]: Choked", thread::current().name().unwrap());
-                conn.chocked = true;
-
-                Ok(None)
-            },
-            Message::Unchoke => {
-                println!("Thread [{:?}]: Unchoked", thread::current().name().unwrap());
-                conn.chocked = false;
-
-                Ok(None)
-            },
-            _ => {
-                println!("Thread [{:?}]: Other message", thread::current().name().unwrap());
-
-                Ok(None)
-            }
-        }
-    }
-
-    // TODO: handle Option
-    fn store_in_buffer(&mut self, block: Block) {
-        self.buf.splice(block.begin as usize..block.end as usize, block.data.unwrap());
-    }
-
-    pub fn copy_to_file(&self, file: &mut File) -> Result<(), io::Error> {
-        file.seek(SeekFrom::Start(self.begin as u64))?;
-        file.write_all(&self.buf)?;
-
-        Ok(())
-    }
-}
-
 impl Block {
-    fn new(index: u32, begin: u32, end: u32, length: u32) -> Block {
+    pub fn new(/*index: u32,*/ begin: u32, end: u32, length: u32) -> Block {
         Block {
-            index,
+            // index,
             begin,
             end,
             length,
@@ -380,7 +173,7 @@ impl Block {
     }
 }
 
-fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
+pub fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
     let mut hasher = Sha1::new();
 
     hasher.input(v);
@@ -420,30 +213,3 @@ impl<'a> fmt::Display for IntegrityError<'a> {
     }
 }
 impl<'a> Error for IntegrityError<'a> {}
-
-#[derive(Debug)]
-pub enum DownloadPieceError<'a> {
-    WrongHash(IntegrityError<'a>),
-    IOError(io::Error)
-}
-
-impl<'a> fmt::Display for DownloadPieceError<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DownloadPieceError::WrongHash(e) =>
-                write!(f, "{}", e),
-            DownloadPieceError::IOError(..) =>
-                write!(f, "Error sending message")
-        }
-    }
-}
-impl<'a> From<IntegrityError<'a>> for DownloadPieceError<'a> {
-    fn from(err: IntegrityError) -> DownloadPieceError {
-        DownloadPieceError::WrongHash(err)
-    }
-}
-impl<'a> From<io::Error> for DownloadPieceError<'a> {
-    fn from(err: io::Error) -> DownloadPieceError<'a> {
-        DownloadPieceError::IOError(err)
-    }
-}
