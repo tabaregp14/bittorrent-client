@@ -2,8 +2,8 @@ use std::time::Duration;
 use std::error::Error;
 use std::net::Ipv4Addr;
 use core::fmt;
-use reqwest;
 use reqwest::Url;
+use reqwest::blocking::Client;
 use percent_encoding::percent_encode_byte;
 use serde::{Deserialize, Deserializer, de};
 use serde::de::Visitor;
@@ -66,7 +66,7 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
         ("left", torrent.calculate_length().to_string())
     ];
     let url = Url::parse_with_params(base_url.as_str(),&url_params)?;
-    let client = reqwest::blocking::Client::builder()
+    let client = Client::builder()
         .timeout(Duration::from_secs(15))
         .build()?;
     let mut res = client.get(url)
