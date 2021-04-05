@@ -38,12 +38,12 @@ pub struct TorrentSubFile {
 
 #[derive(Deserialize)]
 pub struct Torrent {
-    pub name: String,
     pub announce: String,
     pub info_hash: Vec<u8>,
-    pub files: Option<Vec<TorrentSubFile>>,
-    pub pieces: Vec<PieceHash>,
-    pub piece_length: u32,
+    name: String,
+    files: Option<Vec<TorrentSubFile>>,
+    pieces: Vec<PieceHash>,
+    piece_length: u32,
     length: Option<u64> // file size
 }
 
