@@ -31,7 +31,7 @@ struct BencodeTorrent {
 }
 
 #[derive(Deserialize, Serialize)]
-struct TorrentSubFile {
+pub struct TorrentSubFile {
     path: Vec<String>,
     length: u64
 }
@@ -48,23 +48,22 @@ pub struct Torrent {
 }
 
 pub struct DownloadTorrentState {
-    // pub peer_id: Vec<u8>,
-    piece_queue: Mutex<Vec<Piece>>,
-    done_pieces: Mutex<u32>,
-    length: u32,
-    file: Mutex<File>
+    pub piece_queue: Mutex<Vec<Piece>>,
+    pub done_pieces: Mutex<u32>,
+    pub length: u32,
+    pub file: Mutex<File>
 }
 
 #[derive(Clone)]
-struct Piece {
-    index: u32,
+pub struct Piece {
+    pub index: u32,
     hash: PieceHash,
     length: u32, // piece size
     begin: u32,
     end: u32
 }
 
-struct DownloadPieceState {
+pub struct DownloadPieceState {
     index: u32,
     begin: u32,
     requested_blocks: Vec<Block>,
@@ -361,7 +360,7 @@ impl DownloadPieceState {
         self.buf.splice(block.begin as usize..block.end as usize, block.data.unwrap());
     }
 
-    fn copy_to_file(&self, file: &mut File) -> Result<(), io::Error> {
+    pub fn copy_to_file(&self, file: &mut File) -> Result<(), io::Error> {
         file.seek(SeekFrom::Start(self.begin as u64))?;
         file.write_all(&self.buf)?;
 
@@ -413,7 +412,7 @@ impl fmt::Display for Torrent {
 }
 
 #[derive(Debug)]
-struct IntegrityError<'a>(&'a PieceHash, PieceHash);
+pub struct IntegrityError<'a>(&'a PieceHash, PieceHash);
 
 impl<'a> fmt::Display for IntegrityError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -423,7 +422,7 @@ impl<'a> fmt::Display for IntegrityError<'a> {
 impl<'a> Error for IntegrityError<'a> {}
 
 #[derive(Debug)]
-enum DownloadPieceError<'a> {
+pub enum DownloadPieceError<'a> {
     WrongHash(IntegrityError<'a>),
     IOError(io::Error)
 }
