@@ -12,7 +12,7 @@ use crate::torrent::Torrent;
 
 struct PeerVecVisitor;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub struct Peer {
     pub ip: Ipv4Addr,
     pub port: u16
