@@ -116,7 +116,7 @@ impl DownloaderWorker {
             }
 
             match state.read_message(&mut self.conn)? {
-                Some(block) => state.store_in_buffer(block),
+                Some(block) => state.store_block_in_buffer(block),
                 None => continue
             }
         }
@@ -241,7 +241,7 @@ impl PieceState {
     }
 
     // TODO: handle Option
-    fn store_in_buffer(&mut self, block: Block) {
+    fn store_block_in_buffer(&mut self, block: Block) {
         self.buf.splice(block.begin as usize..block.end as usize, block.data.unwrap());
     }
 
