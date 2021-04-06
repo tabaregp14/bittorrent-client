@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::error::Error;
 use std::{fs, fmt};
 use std::path::Path;
@@ -85,8 +86,8 @@ impl Torrent {
         Ok(torrent)
     }
 
-    pub fn create_piece_queue(&self) -> Vec<Piece> {
-        let mut piece_queue = Vec::<Piece>::new();
+    pub fn create_piece_queue(&self) -> VecDeque<Piece> {
+        let mut piece_queue = VecDeque::<Piece>::new();
         let piece_length = self.piece_length as u64;
         let mut length = piece_length;
 
@@ -100,7 +101,7 @@ impl Torrent {
                                    length as u32,
                                    hash.to_owned());
 
-            piece_queue.push(piece);
+            piece_queue.push_back(piece);
         }
 
         piece_queue

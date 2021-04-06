@@ -1,9 +1,9 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::{thread, io, fmt};
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::thread::JoinHandle;
-use std::time::Duration;
 use crate::message::Message;
 use crate::connection::Connection;
 use crate::torrent::{Piece, hash_sha1, Block, Torrent, IntegrityError};
@@ -16,7 +16,7 @@ pub struct DownloaderWorker {
 }
 
 pub struct TorrentState {
-    piece_queue: Mutex<Vec<Piece>>,
+    piece_queue: Mutex<VecDeque<Piece>>,
     done_pieces: Mutex<u32>,
     length: u32,
     file: Mutex<File>
@@ -68,14 +68,9 @@ impl DownloaderWorker {
             match self.torrent_state.get_piece_from_queue() {
                 Some(work_piece) => {
                     if !self.conn.has_piece(&work_piece.index) {
-                        println!("Thread [{:?}]: Peer doesn't have piece {}", thread::current().name().unwrap(), &work_piece.index);
-                        let mut pieces_queue = self.torrent_state.piece_queue.lock().unwrap();
+                        println_thread!("Peer doesn't have piece {}", &work_piece.index);
 
-                        pieces_queue.push(work_piece);
-
-                        // Prevent deadlock
-                        drop(pieces_queue);
-                        thread::sleep(Duration::from_secs(3));
+                        self.torrent_state.push_piece_to_queue(work_piece);
 
                         continue;
                     }
@@ -93,10 +88,8 @@ impl DownloaderWorker {
                             println_thread!("Piece {} finished. Done pieces: {} / {}", &work_piece.index, &done_pieces, &self.torrent_state.length);
                         }
                         Err(e) => {
-                            println!("Thread [{:?}] ERROR: {:?}", thread::current().name().unwrap(), e);
-                            let mut pieces_queue = self.torrent_state.piece_queue.lock().unwrap();
-
-                            pieces_queue.push(work_piece.to_owned());
+                            println_thread!("ERROR: {:?}", e);
+                            self.torrent_state.push_piece_to_queue(work_piece/*.to_owned()*/);
 
                             // FIXME: break only on specific errors
                             println_thread!("Disconnecting...");
@@ -163,7 +156,13 @@ impl TorrentState {
     fn get_piece_from_queue(&self) -> Option<Piece> {
         let mut piece_queue = self.piece_queue.lock().unwrap();
 
-        piece_queue.pop()
+        piece_queue.pop_front()
+    }
+
+    fn push_piece_to_queue(&self, piece: Piece) {
+        let mut pieces_queue = self.piece_queue.lock().unwrap();
+
+        pieces_queue.push_back(piece);
     }
 }
 
