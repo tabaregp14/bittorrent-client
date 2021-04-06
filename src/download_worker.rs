@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::message::Message;
 use crate::connection::Connection;
 use crate::torrent::{Piece, hash_sha1, Block, Torrent, IntegrityError};
+use crate::println_thread;
 
 pub struct DownloaderWorker {
     name: String,
@@ -89,7 +90,7 @@ impl DownloaderWorker {
                             piece.copy_to_file(&mut *file).unwrap();
                             *done_pieces += 1;
 
-                            println!("Thread [{:?}]: Piece {} finished. Done pieces: {} / {}",thread::current().name().unwrap() , &work_piece.index, &done_pieces, &self.torrent_state.length);
+                            println_thread!("Piece {} finished. Done pieces: {} / {}", &work_piece.index, &done_pieces, &self.torrent_state.length);
                         }
                         Err(e) => {
                             println!("Thread [{:?}] ERROR: {:?}", thread::current().name().unwrap(), e);
@@ -98,7 +99,7 @@ impl DownloaderWorker {
                             pieces_queue.push(work_piece.to_owned());
 
                             // FIXME: break only on specific errors
-                            println!("Disconnecting...");
+                            println_thread!("Disconnecting...");
                             break;
                         }
                     }
@@ -123,7 +124,7 @@ impl DownloaderWorker {
 
             match state.read_message(&mut self.conn)? {
                 Some(block) => state.store_in_buffer(block),
-                None => println!("Thread [{:?}]: MESSAGE IS NOT A PIECE", thread::current().name().unwrap())
+                None => continue
             }
         }
 
@@ -191,7 +192,7 @@ impl PieceState {
         match conn.read()? {
             Message::Piece(index, begin, block_data) => {
                 if index != self.index {
-                    println!("Thread [{:?}]: Expected piece ID {} but got {}", thread::current().name().unwrap(), &self.index, &index);
+                    println_thread!("Expected piece ID {} but got {}", &self.index, &index);
 
                     return Ok(None);
                 }
@@ -208,32 +209,32 @@ impl PieceState {
                         Ok(Some(block))
                     },
                     None => {
-                        println!("Thread [{:?}]: Received block was not requested", thread::current().name().unwrap());
+                        println_thread!("Received block was not requested");
 
                         Ok(None)
                     }
                 }
             },
             Message::Have(index) => {
-                println!("Have: {}", &index);
+                println_thread!("Have: {}", &index);
                 conn.set_piece(&index);
 
                 Ok(None)
             },
             Message::Choke => {
-                println!("Thread [{:?}]: Choked", thread::current().name().unwrap());
+                println_thread!("Choked");
                 conn.chocked = true;
 
                 Ok(None)
             },
             Message::Unchoke => {
-                println!("Thread [{:?}]: Unchoked", thread::current().name().unwrap());
+                println_thread!("Unchoked");
                 conn.chocked = false;
 
                 Ok(None)
             },
             _ => {
-                println!("Thread [{:?}]: Other message", thread::current().name().unwrap());
+                println_thread!("Other message");
 
                 Ok(None)
             }
