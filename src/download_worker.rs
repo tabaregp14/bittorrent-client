@@ -6,8 +6,9 @@ use std::io::{Seek, SeekFrom, Write};
 use std::thread::JoinHandle;
 use crate::message::Message;
 use crate::connection::Connection;
-use crate::torrent::{Piece, hash_sha1, Block, Torrent, IntegrityError};
+use crate::torrent::{Piece, Block, Torrent, IntegrityError};
 use crate::println_thread;
+use sha1::{Sha1, Digest};
 
 pub struct DownloaderWorker {
     name: String,
@@ -121,7 +122,7 @@ impl DownloaderWorker {
             }
         }
 
-        piece.check_integrity(hash_sha1(&state.buf))?;
+        piece.check_integrity(Sha1::digest(&state.buf).to_vec())?;
 
         Ok(state)
     }

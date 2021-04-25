@@ -64,7 +64,7 @@ impl BencodeTorrent {
         let info_bytes = serde_bencode::to_bytes(&self.info)?;
 
         Ok(Torrent {
-            info_hash: hash_sha1(&info_bytes),
+            info_hash: Sha1::digest(&info_bytes).to_vec(),
             name: self.info.name,
             announce: self.announce,
             files: self.info.files,
@@ -172,14 +172,6 @@ impl Block {
             data: None
         }
     }
-}
-
-pub fn hash_sha1(v: &Vec<u8>) -> Vec<u8> {
-    let mut hasher = Sha1::new();
-
-    hasher.input(v);
-
-    hasher.result().to_vec()
 }
 
 impl fmt::Display for Torrent {
