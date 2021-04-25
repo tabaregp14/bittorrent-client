@@ -7,6 +7,7 @@ use std::string::FromUtf8Error;
 use byteorder::{BigEndian, ByteOrder};
 use crate::tracker_handler::Peer;
 use crate::message::Message;
+use std::fmt::Debug;
 
 pub struct Handshake {
     pstr: String, // protocol identifier ("BitTorrent protocol")
@@ -63,7 +64,7 @@ impl<'a> Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection, Box<dyn Error>> {
+    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection, ConnectionError> {
         let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
         let mut conn = Connection {
@@ -131,7 +132,7 @@ impl Connection {
         Ok(hs)
     }
 
-    fn receive_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
+    fn receive_handshake(&mut self) -> Result<Handshake, ConnectionError> {
         let mut buf = [0; 68];
 
         self.stream.read_exact(&mut buf)?;
@@ -141,25 +142,60 @@ impl Connection {
         Ok(res_hs)
     }
 
-    fn complete_handshake(&mut self) -> Result<Handshake, Box<dyn Error>> {
+    fn complete_handshake(&mut self) -> Result<Handshake, ConnectionError> {
         let hs = self.send_handshake()?;
         let res_hs = self.receive_handshake()?;
 
         if hs.info_hash.eq(&res_hs.info_hash) {
             Ok(res_hs)
         } else {
-            Err(Box::new(IncorrectHash(hs.info_hash, res_hs.info_hash)))
+            Err(ConnectionError::from(WrongHash(hs.info_hash, res_hs.info_hash)))
         }
     }
 }
 
 #[derive(Debug)]
-struct IncorrectHash(Vec<u8>, Vec<u8>);
+pub struct WrongHash(Vec<u8>, Vec<u8>);
 
-impl fmt::Display for IncorrectHash {
+impl fmt::Display for WrongHash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Incorrect info_hash, Expected info_hash: {:?} but got {:?}", self.0, self.1)
     }
 }
 
-impl Error for IncorrectHash {}
+impl Error for WrongHash {}
+
+#[derive(Debug)]
+pub enum ConnectionError {
+    WrongHash(WrongHash),
+    IOError(io::Error),
+    Utf8Error(FromUtf8Error)
+}
+
+impl fmt::Display for ConnectionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConnectionError::WrongHash(e) =>
+                write!(f, "{}", e),
+            ConnectionError::Utf8Error(e) =>
+                write!(f, "{}", e),
+            ConnectionError::IOError(e) =>
+                write!(f, "{}", e)
+        }
+    }
+}
+impl From<WrongHash> for ConnectionError {
+    fn from(err: WrongHash) -> ConnectionError {
+        ConnectionError::WrongHash(err)
+    }
+}
+impl From<io::Error> for ConnectionError {
+    fn from(err: io::Error) -> ConnectionError {
+        ConnectionError::IOError(err)
+    }
+}
+impl From<FromUtf8Error> for ConnectionError {
+    fn from(err: FromUtf8Error) -> ConnectionError {
+        ConnectionError::Utf8Error(err)
+    }
+}
