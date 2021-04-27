@@ -51,13 +51,9 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
 
 // TODO: add peer id prefix
 pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result<TrackerResponse, Box<dyn Error>> {
-    let url_hash = (&torrent.info_hash).into_iter()
-        .map(|b| percent_encode_byte(*b))
-        .collect::<String>();
-    let peer_id_es = peer_id.into_iter()
-        .map(|b| percent_encode_byte(*b))
-        .collect::<String>();
-    let base_url = format!("{}?info_hash={}&peer_id={}", torrent.announce, url_hash, peer_id_es);
+    let url_hash = url_encode(&torrent.info_hash);
+    let url_peer_id = url_encode(peer_id);
+    let base_url = format!("{}?info_hash={}&peer_id={}", torrent.announce, url_hash, url_peer_id);
     let url_params = [
         ("port", port.to_string()),
         ("uploaded", "0".to_string()),
@@ -78,4 +74,10 @@ pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result
     let tracker_response = serde_bencode::from_bytes::<TrackerResponse>(&buf.as_slice())?;
 
     Ok(tracker_response)
+}
+
+fn url_encode(bytes: &Vec<u8>) -> String {
+    bytes.into_iter()
+        .map(|b| percent_encode_byte(*b))
+        .collect::<String>()
 }
