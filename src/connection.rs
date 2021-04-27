@@ -8,6 +8,9 @@ use byteorder::{BigEndian, ByteOrder};
 use crate::tracker_handler::Peer;
 use crate::message::Message;
 use std::fmt::Debug;
+use core::result;
+
+type Result<T> = result::Result<T, ConnectionError>;
 
 struct Handshake {
     pstr: String, // protocol identifier ("BitTorrent protocol")
@@ -47,7 +50,7 @@ impl<'a> Handshake {
         result
     }
 
-    fn from_bytes(b: &[u8]) -> Result<Handshake, FromUtf8Error> {
+    fn from_bytes(b: &[u8]) -> result::Result<Handshake, FromUtf8Error> {
         let pstr_len = 19;
         let pstr = String::from_utf8(b[1..pstr_len + 1].to_vec())?;
         let info_hash = b[pstr_len + 1 + 8..pstr_len + 1 + 8 + 20].to_vec();
@@ -63,7 +66,7 @@ impl<'a> Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection, ConnectionError> {
+    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection> {
         let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
         let mut conn = Connection {
@@ -82,13 +85,13 @@ impl Connection {
         Ok(conn)
     }
 
-    pub fn send(&mut self, message: Message) -> Result<(), io::Error> {
+    pub fn send(&mut self, message: Message) -> io::Result<()> {
         self.stream.write_all(&message.serialize())?;
 
         Ok(())
     }
 
-    pub fn read(&mut self) -> Result<Message, io::Error> {
+    pub fn read(&mut self) -> io::Result<Message> {
         let mut buf = [0; 4];
         let mut stream = &self.stream;
         let mut msg = Vec::new();
@@ -122,7 +125,7 @@ impl Connection {
         bitfield[byte_index as usize] |= 1 << (7 - offset);
     }
 
-    fn send_handshake(&mut self) -> Result<Handshake, io::Error> {
+    fn send_handshake(&mut self) -> io::Result<Handshake> {
         let hs = Handshake::new(self.info_hash.to_owned(), self.client_peer_id.to_owned());
 
         self.stream.write_all(&hs.as_bytes().as_slice())?;
@@ -130,7 +133,7 @@ impl Connection {
         Ok(hs)
     }
 
-    fn receive_handshake(&mut self) -> Result<Handshake, ConnectionError> {
+    fn receive_handshake(&mut self) -> Result<Handshake> {
         let mut buf = [0; 68];
 
         self.stream.read_exact(&mut buf)?;
@@ -140,7 +143,7 @@ impl Connection {
         Ok(res_hs)
     }
 
-    fn complete_handshake(&mut self) -> Result<Handshake, ConnectionError> {
+    fn complete_handshake(&mut self) -> Result<Handshake> {
         let hs = self.send_handshake()?;
         let res_hs = self.receive_handshake()?;
 

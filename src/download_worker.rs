@@ -188,14 +188,14 @@ impl PieceState {
         }
     }
 
-    fn send_request(&mut self, block: Block, conn: &mut Connection) -> Result<(), io::Error> {
+    fn send_request(&mut self, block: Block, conn: &mut Connection) -> io::Result<()> {
         conn.send(Message::Request(self.index, block.begin, block.length))?;
         self.requested_blocks.push(block);
 
         Ok(())
     }
 
-    fn read_message(&mut self, conn: &mut Connection) -> Result<Option<Block>, io::Error> {
+    fn read_message(&mut self, conn: &mut Connection) -> io::Result<Option<Block>> {
         match conn.read()? {
             Message::Piece(index, begin, block_data) => {
                 if index != self.index {
@@ -258,7 +258,7 @@ impl PieceState {
         self.buf.splice(block.begin as usize..block.end as usize, block.data.unwrap());
     }
 
-    fn copy_to_file(&self, file: &mut File) -> Result<(), io::Error> {
+    fn copy_to_file(&self, file: &mut File) -> io::Result<()> {
         file.seek(SeekFrom::Start(self.begin as u64))?;
         file.write_all(&self.buf)?;
 
