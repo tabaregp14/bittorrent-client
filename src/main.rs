@@ -34,7 +34,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
     println!("Torrent:\n{}",&torrent);
     println!("Number of peers: {}", &peer_queue.len());
 
-    while workers.len() < TorrentState::MAX_CONCURRENT_PEERS as usize && peer_queue.len() > 0 {
+    while workers.len() < TorrentState::MAX_CONCURRENT_PEERS && peer_queue.len() > 0 {
         let peer = peer_queue.pop().unwrap();
         let torrent_state = Arc::clone(&torrent_state);
 

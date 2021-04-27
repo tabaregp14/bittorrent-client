@@ -115,7 +115,7 @@ impl DownloaderWorker {
 
         while !state.block_queue.is_empty() || !state.requested_blocks.is_empty() {
             if !self.conn.chocked {
-                while state.requested_blocks.len() < PieceState::MAX_CONCURRENT_REQUESTS as usize && !state.block_queue.is_empty() {
+                while state.can_send_request() && !state.block_queue.is_empty() {
                     match state.block_queue.pop() {
                         Some(b) => state.send_request(b, &mut self.conn)?,
                         None => println!("Empty block queue")
@@ -136,7 +136,7 @@ impl DownloaderWorker {
 }
 
 impl TorrentState {
-    pub const MAX_CONCURRENT_PEERS: u8 = 20;
+    pub const MAX_CONCURRENT_PEERS: usize = 20;
 
     pub fn new(torrent: &Torrent) -> TorrentState {
         let file = File::create(&torrent.name).unwrap();
@@ -175,7 +175,7 @@ impl TorrentState {
 }
 
 impl PieceState {
-    const MAX_CONCURRENT_REQUESTS: u8 = 5;
+    const MAX_CONCURRENT_REQUESTS: usize = 5;
 
     fn new(piece: &Piece) -> PieceState {
         PieceState {
@@ -247,6 +247,10 @@ impl PieceState {
                 Ok(None)
             }
         }
+    }
+
+    fn can_send_request(&self) -> bool {
+        self.requested_blocks.len() < PieceState::MAX_CONCURRENT_REQUESTS
     }
 
     // TODO: handle Option
