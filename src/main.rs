@@ -6,6 +6,7 @@ use rand::Rng;
 use crate::torrent::Torrent;
 use crate::download_worker::{DownloaderWorker, TorrentState};
 use crate::connection::Connection;
+use crate::tracker_handler::Tracker;
 
 mod connection;
 mod message;
@@ -27,8 +28,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
     let t_path = Path::new(&torrent_path);
     let torrent = Torrent::open(t_path).unwrap();
     let torrent_state = Arc::new(TorrentState::new(&torrent));
-    let res = tracker_handler::request_peers(&torrent, &peer_id, &PORT).unwrap();
-    let mut peer_queue = res.peers;
+    let mut peer_queue = Tracker::request_peers(&torrent, &peer_id, &PORT).unwrap();
     let mut workers = Vec::new();
 
     println!("Torrent:\n{}",&torrent);
