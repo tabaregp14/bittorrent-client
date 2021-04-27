@@ -9,6 +9,7 @@ use crate::connection::Connection;
 use crate::torrent::{Piece, Block, Torrent, IntegrityError};
 use crate::println_thread;
 use sha1::{Sha1, Digest};
+use std::env::set_current_dir;
 
 pub struct DownloaderWorker {
     name: String,
@@ -138,7 +139,12 @@ impl DownloaderWorker {
 impl TorrentState {
     pub const MAX_CONCURRENT_PEERS: usize = 20;
 
-    pub fn new(torrent: &Torrent) -> TorrentState {
+    pub fn new(torrent: &Torrent, out_path: Option<String>) -> TorrentState {
+        match out_path {
+            Some(out_path) => set_current_dir(out_path).unwrap(),
+            None => {}
+        }
+
         let file = File::create(&torrent.name).unwrap();
 
         file.set_len(torrent.calculate_length()).unwrap();
