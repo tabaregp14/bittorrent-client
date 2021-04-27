@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
+use std::convert::TryFrom;
 
 type PieceHash = Vec<u8>;
 
@@ -59,29 +60,11 @@ pub struct Block {
     pub data: Option<Vec<u8>>
 }
 
-impl BencodeTorrent {
-    fn to_torrent(self) -> Result<Torrent, serde_bencode::Error> {
-        let info_bytes = serde_bencode::to_bytes(&self.info)?;
-
-        Ok(Torrent {
-            info_hash: Sha1::digest(&info_bytes).to_vec(),
-            name: self.info.name,
-            announce: self.announce,
-            files: self.info.files,
-            length: self.info.length,
-            piece_length: self.info.piece_length,
-            pieces: self.info.pieces.chunks(20)
-                .map(|s| s.to_vec())
-                .collect()
-        })
-    }
-}
-
 impl Torrent {
     pub fn open(path: &Path) -> Result<Torrent, Box<dyn Error>> {
         let file = fs::read(path)?;
         let bencode_torrent = serde_bencode::from_bytes::<BencodeTorrent>(&file)?;
-        let torrent = bencode_torrent.to_torrent()?;
+        let torrent = Torrent::try_from(bencode_torrent)?;
 
         Ok(torrent)
     }
@@ -116,6 +99,26 @@ impl Torrent {
                 .iter()
                 .fold(0, |acc, file| acc + file.length)
         }
+    }
+}
+
+impl TryFrom<BencodeTorrent> for Torrent {
+    type Error = serde_bencode::Error;
+
+    fn try_from(bencode: BencodeTorrent) -> Result<Torrent, Self::Error> {
+        let info_bytes = serde_bencode::to_bytes(&bencode.info)?;
+
+        Ok(Torrent {
+            info_hash: Sha1::digest(&info_bytes).to_vec(),
+            name: bencode.info.name,
+            announce: bencode.announce,
+            files: bencode.info.files,
+            length: bencode.info.length,
+            piece_length: bencode.info.piece_length,
+            pieces: bencode.info.pieces.chunks(20)
+                .map(|s| s.to_vec())
+                .collect()
+        })
     }
 }
 
