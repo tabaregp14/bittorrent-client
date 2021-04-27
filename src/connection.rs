@@ -9,7 +9,7 @@ use crate::tracker_handler::Peer;
 use crate::message::Message;
 use std::fmt::Debug;
 
-pub struct Handshake {
+struct Handshake {
     pstr: String, // protocol identifier ("BitTorrent protocol")
     info_hash: Vec<u8>,
     peer_id: Vec<u8>
@@ -18,9 +18,8 @@ pub struct Handshake {
 pub struct Connection {
     pub stream: TcpStream,
     pub chocked: bool,
-    pub downloaded: u32,
     pub bitfield: Option<Vec<u8>>,
-    peer: Peer,
+    pub peer: Peer,
     info_hash: Vec<u8>,
     client_peer_id: Vec<u8>
 }
@@ -70,7 +69,6 @@ impl Connection {
         let mut conn = Connection {
             stream,
             chocked: true,
-            downloaded: 0,
             bitfield: None,
             peer,
             info_hash: info_hash.to_owned(),
