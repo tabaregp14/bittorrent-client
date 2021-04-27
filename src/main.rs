@@ -53,7 +53,10 @@ fn run(torrent_path: String, out_path: Option<String>) {
     }
 
     for handler in workers {
-        handler.join().unwrap();
+        match handler.join() {
+            Ok(_) => {},
+            Err(e) => println!("Error joining worker with main thread: {:?}", e)
+        }
     }
 }
 
