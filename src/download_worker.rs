@@ -91,10 +91,12 @@ impl DownloaderWorker {
                             piece.copy_to_file(&mut *file).unwrap();
                             *done_pieces += 1;
 
-                            println_thread!("Piece {} finished. Pieces done: {} / {}",
+                            // println_thread!("Piece {} finished. Pieces done: {} / {} from {} peers",
+                            println!("Piece {} finished. Pieces done: {} / {} from {} peers",
                                 &work_piece.index,
                                 &done_pieces,
-                                &self.torrent_state.length);
+                                &self.torrent_state.length,
+                                Arc::strong_count(&self.torrent_state) - 1);
                         }
                         Err(_) => {
                             // println_thread!("ERROR: {:?}", e);
