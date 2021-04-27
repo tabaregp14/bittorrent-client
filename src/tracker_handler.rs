@@ -1,6 +1,6 @@
 use std::time::Duration;
 use std::error::Error;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr, IpAddr};
 use core::fmt;
 use reqwest::Url;
 use reqwest::blocking::Client;
@@ -15,7 +15,7 @@ struct PeerVecVisitor;
 #[derive(Deserialize, Clone, Copy)]
 pub struct Peer {
     pub ip: Ipv4Addr,
-    pub port: u16
+    port: u16
 }
 #[derive(Deserialize)]
 pub struct TrackerResponse {
@@ -34,6 +34,12 @@ impl Peer {
 
     fn vec_from_bytes<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Peer>, D::Error> {
         d.deserialize_byte_buf(PeerVecVisitor)
+    }
+}
+
+impl From<Peer> for SocketAddr {
+    fn from(peer: Peer) -> SocketAddr {
+        SocketAddr::new(IpAddr::from(peer.ip), peer.port)
     }
 }
 

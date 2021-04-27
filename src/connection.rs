@@ -1,4 +1,4 @@
-use std::net::{TcpStream, SocketAddr, IpAddr};
+use std::net::{TcpStream, SocketAddr};
 use std::time::Duration;
 use std::error::Error;
 use std::io::{self, Write, Read};
@@ -67,7 +67,7 @@ impl<'a> Handshake {
 
 impl Connection {
     pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection> {
-        let addr = SocketAddr::new(IpAddr::from(peer.ip), peer.port);
+        let addr = SocketAddr::from(peer);
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
         let mut conn = Connection {
             stream,
