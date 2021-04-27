@@ -49,9 +49,9 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
     }
 }
 
+// TODO: add peer id prefix
 pub fn request_peers(torrent: &Torrent, peer_id: &Vec<u8>, port: &u16) -> Result<TrackerResponse, Box<dyn Error>> {
-    let url_hash = (&torrent.info_hash)
-        .into_iter()
+    let url_hash = (&torrent.info_hash).into_iter()
         .map(|b| percent_encode_byte(*b))
         .collect::<String>();
     let peer_id_es = peer_id.into_iter()

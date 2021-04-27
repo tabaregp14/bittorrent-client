@@ -43,7 +43,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
                 let handler = DownloaderWorker::new(torrent_state, conn).start();
 
                 workers.push(handler);
-                println!("Total peers connected: {}", workers.len());
+                // println!("Total peers connected: {}", workers.len());
             },
             Err(_) => {
                 // println!("Could not connect to peer. Error: {}", e);

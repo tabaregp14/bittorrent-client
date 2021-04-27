@@ -92,6 +92,7 @@ impl Torrent {
         let mut length = piece_length;
 
         for (index, hash) in self.pieces.iter().enumerate() {
+            // if is last piece and last piece is smaller than piece_length
             if index == self.pieces.len() - 1 && self.calculate_length() % piece_length > 0 {
                 length = self.calculate_length() % piece_length;
             }
@@ -139,6 +140,7 @@ impl Piece {
         let num_of_blocks = (self.length as f32 / Self::MAX_BLOCK_SIZE as f32).ceil() as u32;
 
         for i in 0..num_of_blocks {
+            // if is last block and last block is smaller than block_length
             if i == num_of_blocks - 1 && self.length % block_length > 0 {
                 block_length = self.length % block_length;
             }

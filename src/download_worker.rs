@@ -80,13 +80,20 @@ impl DownloaderWorker {
 
                     match piece_result {
                         Ok(piece) => {
-                            let mut done_pieces = self.torrent_state.done_pieces.lock().unwrap();
-                            let mut file = self.torrent_state.file.lock().unwrap();
+                            let mut done_pieces = self.torrent_state.done_pieces
+                                .lock()
+                                .unwrap();
+                            let mut file = self.torrent_state.file
+                                .lock()
+                                .unwrap();
 
                             piece.copy_to_file(&mut *file).unwrap();
                             *done_pieces += 1;
 
-                            println_thread!("Piece {} finished. Done pieces: {} / {}", &work_piece.index, &done_pieces, &self.torrent_state.length);
+                            println_thread!("Piece {} finished. Pieces done: {} / {}",
+                                &work_piece.index,
+                                &done_pieces,
+                                &self.torrent_state.length);
                         }
                         Err(e) => {
                             println_thread!("ERROR: {:?}", e);
@@ -197,7 +204,8 @@ impl PieceState {
                     return Ok(None);
                 }
 
-                let block_index = self.requested_blocks.iter().position(|b| b.begin == begin);
+                let block_index = self.requested_blocks.iter()
+                    .position(|b| b.begin == begin);
 
                 match block_index {
                     Some(block_index) => {
@@ -216,19 +224,19 @@ impl PieceState {
                 }
             },
             Message::Have(index) => {
-                println_thread!("Have: {}", &index);
+                // println_thread!("Have: {}", &index);
                 conn.set_piece(&index);
 
                 Ok(None)
             },
             Message::Choke => {
-                println_thread!("Choked");
+                // println_thread!("Choked");
                 conn.chocked = true;
 
                 Ok(None)
             },
             Message::Unchoke => {
-                println_thread!("Unchoked");
+                // println_thread!("Unchoked");
                 conn.chocked = false;
 
                 Ok(None)
