@@ -1,5 +1,4 @@
-use std::net::{TcpStream, SocketAddr};
-use std::time::Duration;
+use std::net::TcpStream;
 use std::error::Error;
 use std::io::{self, Write, Read};
 use std::fmt;
@@ -9,6 +8,7 @@ use crate::tracker_handler::Peer;
 use crate::message::Message;
 use std::fmt::Debug;
 use core::result;
+use crate::client::Client;
 
 type Result<T> = result::Result<T, ConnectionError>;
 
@@ -19,22 +19,20 @@ struct Handshake {
 }
 
 pub struct Connection {
-    pub stream: TcpStream,
+    stream: TcpStream,
     pub chocked: bool,
     pub bitfield: Option<Vec<u8>>,
-    pub peer: Peer,
-    info_hash: Vec<u8>,
-    client_peer_id: Vec<u8>
+    pub peer: Peer
 }
 
 impl<'a> Handshake {
     const PROTOCOL_IDENTIFIER: &'a str = "BitTorrent protocol";
 
-    fn new(info_hash: Vec<u8>, peer_id: Vec<u8>) -> Handshake {
+    fn new(info_hash: &Vec<u8>, peer_id: &Vec<u8>) -> Handshake {
         Handshake {
             pstr: String::from(Self::PROTOCOL_IDENTIFIER),
-            info_hash,
-            peer_id
+            info_hash: info_hash.to_owned(),
+            peer_id: peer_id.to_owned()
         }
     }
 
@@ -66,23 +64,13 @@ impl<'a> Handshake {
 }
 
 impl Connection {
-    pub fn connect(peer: Peer, info_hash: &Vec<u8>, client_peer_id: &Vec<u8>) -> Result<Connection> {
-        let addr = SocketAddr::from(peer);
-        let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
-        let mut conn = Connection {
+    pub fn new(stream: TcpStream, peer: Peer) -> Connection {
+        Connection {
             stream,
             chocked: true,
             bitfield: None,
-            peer,
-            info_hash: info_hash.to_owned(),
-            client_peer_id: client_peer_id.to_owned()
-        };
-
-        conn.stream.set_write_timeout(Some(Duration::from_secs(5)))?;
-        conn.stream.set_read_timeout(Some(Duration::from_secs(30)))?;
-        conn.complete_handshake()?;
-
-        Ok(conn)
+            peer
+        }
     }
 
     pub fn send(&mut self, message: Message) -> io::Result<()> {
@@ -125,8 +113,8 @@ impl Connection {
         bitfield[byte_index as usize] |= 1 << (7 - offset);
     }
 
-    fn send_handshake(&mut self) -> io::Result<Handshake> {
-        let hs = Handshake::new(self.info_hash.to_owned(), self.client_peer_id.to_owned());
+    fn send_handshake(&mut self, client: &Client) -> io::Result<Handshake> {
+        let hs = Handshake::new(&client.info_hash, &client.id);
 
         self.stream.write_all(&hs.as_bytes().as_slice())?;
 
@@ -143,12 +131,12 @@ impl Connection {
         Ok(res_hs)
     }
 
-    fn complete_handshake(&mut self) -> Result<Handshake> {
-        let hs = self.send_handshake()?;
+    pub fn complete_handshake(&mut self, client: &Client) -> Result<()> {
+        let hs = self.send_handshake(client)?;
         let res_hs = self.receive_handshake()?;
 
         if hs.info_hash.eq(&res_hs.info_hash) {
-            Ok(res_hs)
+            Ok(())
         } else {
             Err(ConnectionError::from(WrongHash(hs.info_hash, res_hs.info_hash)))
         }
