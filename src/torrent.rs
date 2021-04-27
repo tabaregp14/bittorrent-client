@@ -192,7 +192,7 @@ impl fmt::Display for Torrent {
             None => files_names.push(&self.name)
         }
 
-        write!(f, "----Name: {}\n----Files: {:?}\n----Size: {}\n----Number of pieces: {}\n----Size of pieces: {}",
+        write!(f, "Torrent:\n----Name: {}\n----Files: {:?}\n----Size: {}\n----Number of pieces: {}\n----Size of pieces: {}",
                self.name,
                files_names,
                self.calculate_length(),

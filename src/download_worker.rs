@@ -69,7 +69,7 @@ impl DownloaderWorker {
             match self.torrent_state.get_piece_from_queue() {
                 Some(work_piece) => {
                     if !self.conn.has_piece(&work_piece.index) {
-                        println_thread!("Peer doesn't have piece {}", &work_piece.index);
+                        // println_thread!("Peer doesn't have piece {}", &work_piece.index);
 
                         self.torrent_state.push_piece_to_queue(work_piece);
 
@@ -95,12 +95,12 @@ impl DownloaderWorker {
                                 &done_pieces,
                                 &self.torrent_state.length);
                         }
-                        Err(e) => {
-                            println_thread!("ERROR: {:?}", e);
+                        Err(_) => {
+                            // println_thread!("ERROR: {:?}", e);
                             self.torrent_state.push_piece_to_queue(work_piece/*.to_owned()*/);
 
                             // FIXME: break only on specific errors
-                            println_thread!("Disconnecting...");
+                            println_thread!("Unexpected error. Disconnecting...");
                             break;
                         }
                     }
@@ -242,7 +242,7 @@ impl PieceState {
                 Ok(None)
             },
             _ => {
-                println_thread!("Other message");
+                // println_thread!("Other message");
 
                 Ok(None)
             }

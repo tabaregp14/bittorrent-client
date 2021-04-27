@@ -31,7 +31,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
     let mut peer_queue = Tracker::request_peers(&torrent, &peer_id, &PORT).unwrap();
     let mut workers = Vec::new();
 
-    println!("Torrent:\n{}",&torrent);
+    println!("{}",&torrent);
     println!("Number of peers: {}", &peer_queue.len());
 
     while workers.len() < TorrentState::MAX_CONCURRENT_PEERS && peer_queue.len() > 0 {
@@ -55,7 +55,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
     for handler in workers {
         match handler.join() {
             Ok(_) => {},
-            Err(e) => println!("Error joining worker with main thread: {:?}", e)
+            Err(_) => println!("Error joining worker with main thread.")
         }
     }
 }
