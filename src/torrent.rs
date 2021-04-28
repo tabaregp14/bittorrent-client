@@ -61,7 +61,7 @@ pub struct Block {
 }
 
 impl Torrent {
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Torrent, Box<dyn Error>> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Torrent, OpenTorrentError> {
         let file = fs::read(path)?;
         let bencode_torrent = serde_bencode::from_bytes::<BencodeTorrent>(&file)?;
         let torrent = Torrent::try_from(bencode_torrent)?;
@@ -211,3 +211,30 @@ impl<'a> fmt::Display for IntegrityError<'a> {
     }
 }
 impl<'a> Error for IntegrityError<'a> {}
+
+#[derive(Debug)]
+pub enum OpenTorrentError {
+    SerializationError(serde_bencode::Error),
+    IOError(io::Error)
+}
+
+impl fmt::Display for OpenTorrentError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SerializationError(e) =>
+                write!(f, "{}", e),
+            Self::IOError(..) =>
+                write!(f, "Error reading file")
+        }
+    }
+}
+impl From<serde_bencode::Error> for OpenTorrentError {
+    fn from(err: serde_bencode::Error) -> Self {
+        Self::SerializationError(err)
+    }
+}
+impl From<io::Error> for OpenTorrentError {
+    fn from(err: io::Error) -> Self {
+        Self::IOError(err)
+    }
+}

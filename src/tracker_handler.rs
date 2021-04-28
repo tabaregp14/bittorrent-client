@@ -1,5 +1,4 @@
 use std::time::Duration;
-use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddr, IpAddr};
 use core::fmt;
 use reqwest::Url;
@@ -60,7 +59,7 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
 
 impl Tracker {
     // TODO: add peer id prefix
-    pub fn request_peers(torrent: &Torrent, client: &Client) -> Result<Vec<Peer>, Box<dyn Error>> {
+    pub fn request_peers(torrent: &Torrent, client: &Client) -> Result<Vec<Peer>, TrackerError> {
         let mut buf = Vec::new();
         let url = Self::parse_url(&torrent, &client);
         let req_client = reqwest::blocking::Client::builder()
@@ -90,5 +89,32 @@ impl Tracker {
         let url = Url::parse_with_params(base_url.as_str(),&url_params).unwrap();
 
         url
+    }
+}
+
+#[derive(Debug)]
+pub enum TrackerError {
+    SerializationError(serde_bencode::Error),
+    RequestError(reqwest::Error)
+}
+
+impl fmt::Display for TrackerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SerializationError(e) =>
+                write!(f, "{}", e),
+            Self::RequestError(e) =>
+                write!(f, "{}", e)
+        }
+    }
+}
+impl From<serde_bencode::Error> for TrackerError {
+    fn from(err: serde_bencode::Error) -> Self {
+        Self::SerializationError(err)
+    }
+}
+impl From<reqwest::Error> for TrackerError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::RequestError(err)
     }
 }
