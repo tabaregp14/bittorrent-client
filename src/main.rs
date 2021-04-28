@@ -24,13 +24,12 @@ fn run(torrent_path: String, out_path: Option<String>) {
     let torrent = Torrent::open(torrent_path).unwrap();
     let torrent_state = Arc::new(TorrentState::new(&torrent, out_path));
     let mut client = Client::new(&torrent.info_hash);
-    let mut tracker = Tracker::send_request(&torrent, &client).unwrap();
+    let tracker = Tracker::send_request(&torrent, &client).unwrap();
 
     println!("{}",&torrent);
     println!("Number of peers: {}", &tracker.peers.len());
 
-    while client.workers.len() < TorrentState::MAX_CONCURRENT_PEERS && tracker.peers.len() > 0 {
-        let peer = tracker.peers.pop().unwrap();
+    for peer in tracker.peers {
 
         match client.connect(peer) {
             Ok(conn) => {

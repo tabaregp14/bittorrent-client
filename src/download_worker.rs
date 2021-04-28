@@ -140,8 +140,6 @@ impl DownloaderWorker {
 }
 
 impl TorrentState {
-    pub const MAX_CONCURRENT_PEERS: usize = 20;
-
     pub fn new<P: AsRef<Path>>(torrent: &Torrent, out_path: Option<P>) -> TorrentState {
         let file = Self::create_files(torrent, out_path).unwrap();
 
