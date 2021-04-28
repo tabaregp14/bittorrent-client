@@ -1,28 +1,19 @@
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{thread, io, fmt};
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::thread::JoinHandle;
-use std::env::set_current_dir;
-use std::path::Path;
 use sha1::{Sha1, Digest};
 use crate::message::Message;
 use crate::connection::Connection;
-use crate::torrent::{Piece, Block, Torrent, IntegrityError};
+use crate::torrent::{Piece, Block, IntegrityError};
 use crate::println_thread;
+use crate::client::Client;
 
 pub struct DownloaderWorker {
     name: String,
     conn: Connection,
-    torrent_state: Arc<TorrentState>
-}
-
-pub struct TorrentState {
-    piece_queue: Mutex<VecDeque<Piece>>,
-    done_pieces: Mutex<u32>,
-    length: u32,
-    file: Mutex<File>
+    client: Arc<Client>
 }
 
 struct PieceState {
@@ -35,11 +26,11 @@ struct PieceState {
 }
 
 impl DownloaderWorker {
-    pub fn new(torrent_state: Arc<TorrentState>, conn: Connection) -> DownloaderWorker {
+    pub fn new(client: Arc<Client>, conn: Connection) -> DownloaderWorker {
         DownloaderWorker {
             name: (&conn.peer.ip).to_string(),
             conn,
-            torrent_state
+            client
         }
     }
 
@@ -57,11 +48,11 @@ impl DownloaderWorker {
     }
 
     fn download(&mut self) {
-        while !self.torrent_state.is_done() {
-            match self.torrent_state.get_piece_from_queue() {
+        while !self.client.torrent.is_done() {
+            match self.client.torrent.get_piece_from_queue() {
                 Some(work_piece) => {
                     if !self.conn.has_piece(&work_piece.index) {
-                        self.torrent_state.push_piece_to_queue(work_piece);
+                        self.client.torrent.push_piece_to_queue(work_piece);
 
                         continue;
                     }
@@ -70,24 +61,20 @@ impl DownloaderWorker {
 
                     match piece_result {
                         Ok(piece) => {
-                            let mut done_pieces = self.torrent_state.done_pieces
-                                .lock()
-                                .unwrap();
-                            let mut file = self.torrent_state.file
-                                .lock()
-                                .unwrap();
+                            let mut done_pieces = self.client.get_done_pieces();
+                            let mut file = self.client.get_file();
 
                             piece.copy_to_file(&mut *file).unwrap();
                             *done_pieces += 1;
 
                             println!("Piece {} finished. Pieces done: {} / {} from {} peers",
-                                &work_piece.index,
-                                &done_pieces,
-                                &self.torrent_state.length,
-                                Arc::strong_count(&self.torrent_state) - 1);
+                                     &work_piece.index,
+                                     &done_pieces,
+                                     &self.client.torrent.length,
+                                     Arc::strong_count(&self.client) - 1);
                         }
                         Err(_) => {
-                            self.torrent_state.push_piece_to_queue(work_piece/*.to_owned()*/);
+                            self.client.torrent.push_piece_to_queue(work_piece/*.to_owned()*/);
 
                             // FIXME: break only on specific errors
                             println_thread!("Unexpected error. Disconnecting...");
@@ -141,55 +128,6 @@ impl DownloaderWorker {
         }
 
         Ok(())
-    }
-}
-
-impl TorrentState {
-    pub fn new<P: AsRef<Path>>(torrent: &Torrent, out_path: Option<P>) -> TorrentState {
-        let file = Self::create_files(torrent, out_path).unwrap();
-
-        TorrentState {
-            done_pieces: Mutex::new(0),
-            piece_queue: Mutex::new(torrent.create_piece_queue()),
-            length: torrent.pieces.len() as u32,
-            file: Mutex::new(file)
-        }
-    }
-
-    pub fn is_done(&self) -> bool {
-        let done_pieces = self.done_pieces.lock().unwrap();
-
-        if *done_pieces >= self.length {
-            return true;
-        }
-
-        false
-    }
-
-    fn get_piece_from_queue(&self) -> Option<Piece> {
-        let mut piece_queue = self.piece_queue.lock().unwrap();
-
-        piece_queue.pop_front()
-    }
-
-    fn push_piece_to_queue(&self, piece: Piece) {
-        let mut pieces_queue = self.piece_queue.lock().unwrap();
-
-        pieces_queue.push_back(piece);
-    }
-
-    // TODO: add multiple files creation
-    fn create_files<P: AsRef<Path>>(torrent: &Torrent, path: Option<P>) -> io::Result<File> {
-        match path {
-            Some(path) => set_current_dir(path)?,
-            None => {}
-        }
-
-        let file = File::create(&torrent.name)?;
-
-        file.set_len(torrent.calculate_length())?;
-
-        Ok(file)
     }
 }
 

@@ -114,7 +114,7 @@ impl Connection {
     }
 
     fn send_handshake(&mut self, client: &Client) -> io::Result<Handshake> {
-        let hs = Handshake::new(&client.info_hash, &client.id);
+        let hs = Handshake::new(&client.torrent.info_hash, &client.id);
 
         self.stream.write_all(&hs.as_bytes().as_slice())?;
 

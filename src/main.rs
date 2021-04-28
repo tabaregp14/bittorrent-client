@@ -2,7 +2,7 @@ use std::env;
 use std::process::exit;
 use std::sync::Arc;
 use crate::torrent::Torrent;
-use crate::download_worker::{DownloaderWorker, TorrentState};
+use crate::download_worker::DownloaderWorker;
 use crate::tracker_handler::Tracker;
 use crate::client::Client;
 
@@ -22,9 +22,9 @@ fn main() {
 
 fn run(torrent_path: String, out_path: Option<String>) {
     let torrent = Torrent::open(torrent_path).unwrap();
-    let torrent_state = Arc::new(TorrentState::new(&torrent, out_path));
-    let mut client = Client::new(&torrent.info_hash);
+    let client = Arc::new(Client::new(&torrent, out_path));
     let tracker = Tracker::send_request(&torrent, &client).unwrap();
+    let mut workers = Vec::new();
 
     println!("{}",&torrent);
     println!("Number of peers: {}", &tracker.peers.len());
@@ -32,11 +32,10 @@ fn run(torrent_path: String, out_path: Option<String>) {
     for peer in tracker.peers {
         match client.connect(peer) {
             Ok(conn) => {
-                let torrent_state = Arc::clone(&torrent_state);
-                let handler = DownloaderWorker::new(torrent_state, conn)
+                let handler = DownloaderWorker::new(client.clone(), conn)
                     .start();
 
-                client.workers.push(handler);
+                workers.push(handler);
                 // println!("Total peers connected: {}", client.workers.len());
             },
             Err(_) => {
@@ -46,7 +45,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
         }
     }
 
-    for handler in client.workers {
+    for handler in workers {
         handler.join().expect("Error joining worker with main thread.");
     }
 }
