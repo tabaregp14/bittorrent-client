@@ -20,10 +20,10 @@ pub struct Peer {
 pub struct Tracker;
 
 #[derive(Deserialize)]
-struct TrackerResponse {
+pub struct TrackerResponse {
     interval: u32,
     #[serde(deserialize_with = "Peer::vec_from_bytes")]
-    peers: Vec<Peer>
+    pub peers: Vec<Peer>
 }
 
 impl Peer {
@@ -59,7 +59,7 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
 
 impl Tracker {
     // TODO: add peer id prefix
-    pub fn request_peers(torrent: &Torrent, client: &Client) -> Result<Vec<Peer>, TrackerError> {
+    pub fn send_request(torrent: &Torrent, client: &Client) -> Result<TrackerResponse, TrackerError> {
         let mut buf = Vec::new();
         let url = Self::parse_url(&torrent, &client);
         let req_client = reqwest::blocking::Client::builder()
@@ -72,7 +72,7 @@ impl Tracker {
 
         let tracker_response = serde_bencode::from_bytes::<TrackerResponse>(&buf.as_slice())?;
 
-        Ok(tracker_response.peers)
+        Ok(tracker_response)
     }
 
     fn parse_url(torrent: &Torrent, client: &Client) -> Url {
