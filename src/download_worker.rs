@@ -124,6 +124,7 @@ impl DownloaderWorker {
 
                 &self.download();
             },
+            Message::Have(index) => self.conn.set_piece(&index),
             _ => {}
         }
 
