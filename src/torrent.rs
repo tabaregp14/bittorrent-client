@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::error::Error;
-use std::{fs, fmt};
+use std::{fs, fmt, io};
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_bencode;
@@ -61,7 +61,7 @@ pub struct Block {
 }
 
 impl Torrent {
-    pub fn open(path: &Path) -> Result<Torrent, Box<dyn Error>> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Torrent, Box<dyn Error>> {
         let file = fs::read(path)?;
         let bencode_torrent = serde_bencode::from_bytes::<BencodeTorrent>(&file)?;
         let torrent = Torrent::try_from(bencode_torrent)?;

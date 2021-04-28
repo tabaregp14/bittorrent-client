@@ -1,5 +1,4 @@
 use std::env;
-use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 use crate::torrent::Torrent;
@@ -22,7 +21,6 @@ fn main() {
 }
 
 fn run(torrent_path: String, out_path: Option<String>) {
-    let torrent_path = Path::new(&torrent_path);
     let torrent = Torrent::open(torrent_path).unwrap();
     let torrent_state = Arc::new(TorrentState::new(&torrent, out_path));
     let mut client = Client::new(&torrent.info_hash);

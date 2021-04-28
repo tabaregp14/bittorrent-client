@@ -10,6 +10,7 @@ use crate::torrent::{Piece, Block, Torrent, IntegrityError};
 use crate::println_thread;
 use sha1::{Sha1, Digest};
 use std::env::set_current_dir;
+use std::path::Path;
 
 pub struct DownloaderWorker {
     name: String,
@@ -141,15 +142,8 @@ impl DownloaderWorker {
 impl TorrentState {
     pub const MAX_CONCURRENT_PEERS: usize = 20;
 
-    pub fn new(torrent: &Torrent, out_path: Option<String>) -> TorrentState {
-        match out_path {
-            Some(out_path) => set_current_dir(out_path).unwrap(),
-            None => {}
-        }
-
-        let file = File::create(&torrent.name).unwrap();
-
-        file.set_len(torrent.calculate_length()).unwrap();
+    pub fn new<P: AsRef<Path>>(torrent: &Torrent, out_path: Option<P>) -> TorrentState {
+        let file = Self::create_files(torrent, out_path).unwrap();
 
         TorrentState {
             done_pieces: Mutex::new(0),
@@ -179,6 +173,20 @@ impl TorrentState {
         let mut pieces_queue = self.piece_queue.lock().unwrap();
 
         pieces_queue.push_back(piece);
+    }
+
+    // TODO: add multiple files creation
+    fn create_files<P: AsRef<Path>>(torrent: &Torrent, path: Option<P>) -> io::Result<File> {
+        match path {
+            Some(path) => set_current_dir(path)?,
+            None => {}
+        }
+
+        let file = File::create(&torrent.name)?;
+
+        file.set_len(torrent.calculate_length())?;
+
+        Ok(file)
     }
 }
 
