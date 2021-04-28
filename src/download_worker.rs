@@ -48,22 +48,12 @@ impl DownloaderWorker {
             .name(format!("{}", &self.name))
             .spawn(move || {
                 while self.conn.chocked {
-                    match self.conn.read().unwrap() {
-                        Message::Bitfield(bitfield) => {
-                            self.conn.bitfield = Some(bitfield);
-                            self.conn.send(Message::Unchoke).unwrap();
-                            self.conn.send(Message::Interested).unwrap();
-                        },
-                        Message::Unchoke => {
-                            self.conn.chocked = false;
-
-                            &self.download();
-                        },
-                        _ => {}
+                    match self.conn.read() {
+                        Ok(msg) => self.interpret_message(msg).unwrap(),
+                        Err(_) => break
                     }
                 }
-            })
-            .unwrap()
+            }).expect("Error starting worker.")
     }
 
     fn download(&mut self) {
@@ -132,6 +122,25 @@ impl DownloaderWorker {
         piece.check_integrity(Sha1::digest(&state.buf).to_vec())?;
 
         Ok(state)
+    }
+
+    fn interpret_message(&mut self, message: Message) -> io::Result<()> {
+        match message {
+            Message::Bitfield(bitfield) => {
+                self.conn.bitfield = Some(bitfield);
+
+                self.conn.send(Message::Unchoke)?;
+                self.conn.send(Message::Interested)?;
+            },
+            Message::Unchoke => {
+                self.conn.chocked = false;
+
+                &self.download();
+            },
+            _ => {}
+        }
+
+        Ok(())
     }
 }
 
