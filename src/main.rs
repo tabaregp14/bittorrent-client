@@ -58,7 +58,8 @@ fn read_paths() -> (String, Option<String>) {
     match torrent_path {
         Some(path) => (path.to_owned(), out_path),
         None => {
-            println!("Use bittorrent-client <torrent file> [out path]");
+            println!("No torrent path found.\n\
+                      Usage: bittorrent-client <torrent file path> [out path]");
             exit(0);
         }
     }
