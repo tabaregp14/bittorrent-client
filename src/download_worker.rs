@@ -4,13 +4,13 @@ use std::{thread, io, fmt};
 use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::thread::JoinHandle;
+use std::env::set_current_dir;
+use std::path::Path;
+use sha1::{Sha1, Digest};
 use crate::message::Message;
 use crate::connection::Connection;
 use crate::torrent::{Piece, Block, Torrent, IntegrityError};
 use crate::println_thread;
-use sha1::{Sha1, Digest};
-use std::env::set_current_dir;
-use std::path::Path;
 
 pub struct DownloaderWorker {
     name: String,

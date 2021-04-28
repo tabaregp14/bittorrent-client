@@ -2,12 +2,12 @@ use std::net::TcpStream;
 use std::error::Error;
 use std::io::{self, Write, Read};
 use std::fmt;
+use std::fmt::Debug;
 use std::string::FromUtf8Error;
+use core::result;
 use byteorder::{BigEndian, ByteOrder};
 use crate::tracker_handler::Peer;
 use crate::message::Message;
-use std::fmt::Debug;
-use core::result;
 use crate::client::Client;
 
 type Result<T> = result::Result<T, ConnectionError>;

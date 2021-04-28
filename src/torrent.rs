@@ -2,11 +2,11 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::{fs, fmt, io};
 use std::path::Path;
+use std::convert::TryFrom;
 use serde::{Deserialize, Serialize};
 use serde_bencode;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
-use std::convert::TryFrom;
 
 type PieceHash = Vec<u8>;
 
