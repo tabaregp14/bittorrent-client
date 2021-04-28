@@ -126,14 +126,12 @@ impl Piece {
     const MAX_BLOCK_SIZE: u32 = 16384;
 
     fn new(index: u32, begin: u32, length: u32, hash: PieceHash) -> Self {
-        let end = begin + length;
-
         Piece {
             index,
             hash,
             length,
             begin,
-            end
+            end: begin + length
         }
     }
 

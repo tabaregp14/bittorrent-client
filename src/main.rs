@@ -30,11 +30,11 @@ fn run(torrent_path: String, out_path: Option<String>) {
     println!("Number of peers: {}", &tracker.peers.len());
 
     for peer in tracker.peers {
-
         match client.connect(peer) {
             Ok(conn) => {
                 let torrent_state = Arc::clone(&torrent_state);
-                let handler = DownloaderWorker::new(torrent_state, conn).start();
+                let handler = DownloaderWorker::new(torrent_state, conn)
+                    .start();
 
                 client.workers.push(handler);
                 // println!("Total peers connected: {}", client.workers.len());
