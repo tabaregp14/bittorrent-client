@@ -46,7 +46,7 @@ impl DownloaderWorker {
     }
 
     fn download(&mut self) {
-        while !self.client.torrent.is_done() {
+        while !self.client.is_done() {
             match self.get_piece_from_queue() {
                 Some(work_piece) => {
                     if !self.conn.has_piece(&work_piece.index) {

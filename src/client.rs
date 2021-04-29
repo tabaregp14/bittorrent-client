@@ -76,6 +76,18 @@ impl Client {
         Ok(tracker_response)
     }
 
+    pub fn is_done(&self) -> bool {
+        let done_pieces = self.torrent.done_pieces
+            .lock()
+            .unwrap();
+
+        if *done_pieces >= self.torrent.total_pieces {
+            return true;
+        }
+
+        false
+    }
+
     fn parse_url(&self, torrent: &Torrent) -> Url {
         let url_hash = url_encode(&self.torrent.info_hash);
         let url_peer_id = url_encode(&self.id);
@@ -119,16 +131,6 @@ impl TorrentState {
             total_pieces: torrent.pieces.len() as u32,
             info_hash: torrent.info_hash.to_owned(),
         }
-    }
-
-    pub fn is_done(&self) -> bool {
-        let done_pieces = self.done_pieces.lock().unwrap();
-
-        if *done_pieces >= self.total_pieces {
-            return true;
-        }
-
-        false
     }
 }
 
