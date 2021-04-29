@@ -52,6 +52,7 @@ pub struct Piece {
     end: u32
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Block {
     // index: u32,
     pub begin: u32,
@@ -243,5 +244,53 @@ impl From<serde_bencode::Error> for OpenTorrentError {
 impl From<io::Error> for OpenTorrentError {
     fn from(err: io::Error) -> Self {
         Self::IOError(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sha1::{Sha1, Digest};
+    use crate::torrent::{Piece, Block};
+
+    #[test]
+    fn check_correct_piece_integrity() {
+        let data = &[0, 1, 2, 3, 4];
+        let hash = Sha1::digest(data).to_vec();
+        let piece = Piece::new(0, 0, 30, hash.to_owned());
+
+        assert!(!piece.check_integrity(hash).is_err());
+    }
+
+    #[test]
+    fn check_wrong_piece_integrity() {
+        let data_1 = &[0, 1, 2, 3, 4];
+        let data_2 = &[0, 1, 2, 3, 5];
+        let hash_1 = Sha1::digest(data_1).to_vec();
+        let hash_2 = Sha1::digest(data_2).to_vec();
+        let piece = Piece::new(0, 0, 30, hash_1.to_owned());
+
+        assert!(piece.check_integrity(hash_2).is_err());
+    }
+
+    #[test]
+    fn create_block_queue() {
+        let hash = Sha1::digest(&[0, 1, 2, 3, 4]).to_vec();
+        let piece = Piece::new(0, 0, (Piece::MAX_BLOCK_SIZE as f32 * 4.5) as u32, hash);
+        let block_queue = piece.create_block_queue();
+        let mut control_block_queue = vec![];
+        for i in 0..5 {
+            let begin = Piece::MAX_BLOCK_SIZE * i;
+            let mut length = Piece::MAX_BLOCK_SIZE;
+
+            if i == 4 { length = (Piece::MAX_BLOCK_SIZE as f32 * 0.5) as u32 }
+
+            let block = Block::new(begin,
+                                   begin + length,
+                                   length);
+
+            control_block_queue.push(block);
+        }
+
+        assert_eq!(control_block_queue, block_queue);
     }
 }
