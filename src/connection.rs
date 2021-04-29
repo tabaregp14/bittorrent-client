@@ -24,14 +24,14 @@ struct Handshake {
 
 pub struct Connection {
     stream: TcpStream,
+    pub name: String,
     pub chocked: bool,
-    pub bitfield: Option<Vec<u8>>,
-    pub peer: Peer
+    pub bitfield: Option<Vec<u8>>
 }
 
 #[derive(Deserialize, Clone, Copy)]
 pub struct Peer {
-    pub ip: Ipv4Addr,
+    ip: Ipv4Addr,
     port: u16
 }
 

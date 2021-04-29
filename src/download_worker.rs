@@ -11,7 +11,6 @@ use crate::println_thread;
 use crate::client::Client;
 
 pub struct DownloaderWorker {
-    name: String,
     conn: Connection,
     client: Arc<Client>
 }
@@ -28,7 +27,6 @@ struct PieceState {
 impl DownloaderWorker {
     pub fn new(client: Arc<Client>, conn: Connection) -> DownloaderWorker {
         DownloaderWorker {
-            name: (&conn.peer.ip).to_string(),
             conn,
             client
         }
@@ -36,7 +34,7 @@ impl DownloaderWorker {
 
     pub fn start(mut self) -> JoinHandle<()> {
         thread::Builder::new()
-            .name(format!("{}", &self.name))
+            .name(format!("{}", &self.conn.name))
             .spawn(move || {
                 while self.conn.chocked {
                     match self.conn.read() {
