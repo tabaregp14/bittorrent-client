@@ -53,7 +53,7 @@ impl Client {
         self.file.lock().unwrap()
     }
 
-    pub fn send_tracker_request(&self, torrent: &Torrent) -> Result<TrackerResponse, TrackerError> {
+    pub fn get_tracker(&self, torrent: &Torrent) -> Result<TrackerResponse, TrackerError> {
         let mut buf = Vec::new();
         let url = self.parse_url(&torrent);
         let req_client = reqwest::blocking::Client::builder()
