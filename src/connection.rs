@@ -1,4 +1,4 @@
-use std::net::TcpStream;
+use std::net::{TcpStream, Ipv4Addr, SocketAddr, IpAddr};
 use std::error::Error;
 use std::io::{self, Write, Read};
 use std::fmt;
@@ -6,11 +6,14 @@ use std::fmt::Debug;
 use std::string::FromUtf8Error;
 use core::result;
 use byteorder::{BigEndian, ByteOrder};
-use crate::tracker_handler::Peer;
+use serde::{Deserialize, Deserializer, de};
+use serde::de::Visitor;
 use crate::message::Message;
 use crate::client::Client;
 
 type Result<T> = result::Result<T, ConnectionError>;
+
+struct PeerVecVisitor;
 
 struct Handshake {
     pstr: String, // protocol identifier ("BitTorrent protocol")
@@ -23,6 +26,19 @@ pub struct Connection {
     pub chocked: bool,
     pub bitfield: Option<Vec<u8>>,
     pub peer: Peer
+}
+
+#[derive(Deserialize, Clone, Copy)]
+pub struct Peer {
+    pub ip: Ipv4Addr,
+    port: u16
+}
+
+#[derive(Deserialize)]
+pub struct TrackerResponse {
+    interval: u32,
+    #[serde(deserialize_with = "Peer::vec_from_bytes")]
+    pub peers: Vec<Peer>
 }
 
 impl<'a> Handshake {
@@ -60,6 +76,37 @@ impl<'a> Handshake {
             info_hash,
             peer_id
         })
+    }
+}
+
+impl Peer {
+    fn from_bytes(b: &[u8]) -> Peer {
+        let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
+        let port = BigEndian::read_u16(&[b[4], b[5]]);
+
+        Peer { ip, port }
+    }
+
+    fn vec_from_bytes<'de, D: Deserializer<'de>>(d: D) -> result::Result<Vec<Peer>, D::Error> {
+        d.deserialize_byte_buf(PeerVecVisitor)
+    }
+}
+
+impl From<Peer> for SocketAddr {
+    fn from(peer: Peer) -> SocketAddr {
+        SocketAddr::new(IpAddr::from(peer.ip), peer.port)
+    }
+}
+
+impl <'de> Visitor<'de> for PeerVecVisitor {
+    type Value = Vec<Peer>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("byte array")
+    }
+
+    fn visit_bytes<E: de::Error>(self, v: &[u8]) -> result::Result<Self::Value, E> {
+        Ok(v.chunks(6).map(Peer::from_bytes).collect())
     }
 }
 

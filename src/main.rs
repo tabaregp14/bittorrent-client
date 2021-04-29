@@ -8,7 +8,6 @@ use crate::client::Client;
 mod connection;
 mod message;
 mod torrent;
-mod tracker_handler;
 mod download_worker;
 mod utils;
 mod client;

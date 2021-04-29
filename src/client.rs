@@ -8,8 +8,7 @@ use std::env::set_current_dir;
 use std::collections::VecDeque;
 use rand::Rng;
 use reqwest::Url;
-use crate::connection::{Connection, ConnectionError};
-use crate::tracker_handler::{Peer, TrackerResponse};
+use crate::connection::{Connection, ConnectionError, TrackerResponse, Peer};
 use crate::torrent::{Torrent, Piece};
 use crate::utils::url_encode;
 
