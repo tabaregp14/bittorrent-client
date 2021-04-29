@@ -3,7 +3,6 @@ use std::process::exit;
 use std::sync::Arc;
 use crate::torrent::Torrent;
 use crate::download_worker::DownloaderWorker;
-use crate::tracker_handler::Tracker;
 use crate::client::Client;
 
 mod connection;
@@ -23,7 +22,7 @@ fn main() {
 fn run(torrent_path: String, out_path: Option<String>) {
     let torrent = Torrent::open(torrent_path).unwrap();
     let client = Arc::new(Client::new(&torrent, out_path));
-    let tracker = Tracker::send_request(&torrent, &client).unwrap();
+    let tracker = client.send_tracker_request(&torrent).unwrap();
     let mut workers = Vec::new();
 
     println!("{}",&torrent);

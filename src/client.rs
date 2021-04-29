@@ -3,13 +3,15 @@ use std::time::Duration;
 use std::sync::{Mutex, MutexGuard};
 use std::fs::File;
 use std::path::Path;
-use std::io;
+use std::{io, fmt};
 use std::env::set_current_dir;
 use std::collections::VecDeque;
 use rand::Rng;
+use reqwest::Url;
 use crate::connection::{Connection, ConnectionError};
-use crate::tracker_handler::Peer;
+use crate::tracker_handler::{Peer, TrackerResponse};
 use crate::torrent::{Torrent, Piece};
+use crate::utils::url_encode;
 
 pub struct Client {
     pub id: Vec<u8>,
@@ -67,6 +69,38 @@ impl Client {
         self.file.lock().unwrap()
     }
 
+    pub fn send_tracker_request(&self, torrent: &Torrent) -> Result<TrackerResponse, TrackerError> {
+        let mut buf = Vec::new();
+        let url = self.parse_url(&torrent);
+        let req_client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(15))
+            .build()?;
+        let mut res = req_client.get(url)
+            .send()?;
+
+        res.copy_to(&mut buf)?;
+
+        let tracker_response = serde_bencode::from_bytes::<TrackerResponse>(&buf.as_slice())?;
+
+        Ok(tracker_response)
+    }
+
+    fn parse_url(&self, torrent: &Torrent) -> Url {
+        let url_hash = url_encode(&self.torrent.info_hash);
+        let url_peer_id = url_encode(&self.id);
+        let base_url = format!("{}?info_hash={}&peer_id={}", torrent.announce, url_hash, url_peer_id);
+        let url_params = [
+            ("port", self.port.to_string()),
+            ("uploaded", self.uploaded.to_string()),
+            ("downloaded", self.downloaded.to_string()),
+            ("compact", "1".to_string()),
+            ("left", torrent.calculate_length().to_string())
+        ];
+        let url = Url::parse_with_params(base_url.as_str(),&url_params).unwrap();
+
+        url
+    }
+
     fn generate_random_id() -> Vec<u8> {
         let id = rand::thread_rng().gen::<[u8; 20]>().to_vec();
 
@@ -122,5 +156,32 @@ impl TorrentState {
             .unwrap();
 
         pieces_queue.push_back(piece);
+    }
+}
+
+#[derive(Debug)]
+pub enum TrackerError {
+    SerializationError(serde_bencode::Error),
+    RequestError(reqwest::Error)
+}
+
+impl fmt::Display for TrackerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SerializationError(e) =>
+                write!(f, "{}", e),
+            Self::RequestError(e) =>
+                write!(f, "{}", e)
+        }
+    }
+}
+impl From<serde_bencode::Error> for TrackerError {
+    fn from(err: serde_bencode::Error) -> Self {
+        Self::SerializationError(err)
+    }
+}
+impl From<reqwest::Error> for TrackerError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::RequestError(err)
     }
 }
