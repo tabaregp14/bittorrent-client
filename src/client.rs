@@ -1,4 +1,3 @@
-use std::net::{TcpStream, SocketAddr};
 use std::time::Duration;
 use std::sync::{Mutex, MutexGuard};
 use std::fs::File;
@@ -8,7 +7,7 @@ use std::env::set_current_dir;
 use std::collections::VecDeque;
 use rand::Rng;
 use reqwest::Url;
-use crate::connection::{Connection, ConnectionError, TrackerResponse, Peer};
+use crate::connection::TrackerResponse;
 use crate::torrent::{Torrent, Piece};
 use crate::utils::url_encode;
 
@@ -42,20 +41,6 @@ impl Client {
             file: Mutex::new(file),
             torrent: TorrentState::new(torrent)
         }
-    }
-
-    pub fn connect(&self, peer: Peer) -> Result<Connection, ConnectionError> {
-        let addr = SocketAddr::from(peer);
-        let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
-
-        stream.set_write_timeout(Some(Duration::from_secs(5)))?;
-        stream.set_read_timeout(Some(Duration::from_secs(30)))?;
-
-        let mut conn = Connection::new(stream, peer);
-
-        conn.complete_handshake(self)?;
-
-        Ok(conn)
     }
 
     pub fn get_done_pieces(&self) -> MutexGuard<u32> {

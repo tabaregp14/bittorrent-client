@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::torrent::Torrent;
 use crate::download_worker::DownloaderWorker;
 use crate::client::Client;
+use crate::connection::Connection;
 
 mod connection;
 mod message;
@@ -28,7 +29,7 @@ fn run(torrent_path: String, out_path: Option<String>) {
     println!("Number of peers: {}", &tracker.peers.len());
 
     for peer in tracker.peers {
-        match client.connect(peer) {
+        match Connection::new(&client, peer) {
             Ok(conn) => {
                 let handler = DownloaderWorker::new(client.clone(), conn)
                     .start();

@@ -4,6 +4,7 @@ use std::io::{self, Write, Read};
 use std::fmt;
 use std::fmt::Debug;
 use std::string::FromUtf8Error;
+use std::time::Duration;
 use core::result;
 use byteorder::{BigEndian, ByteOrder};
 use serde::{Deserialize, Deserializer, de};
@@ -111,13 +112,23 @@ impl <'de> Visitor<'de> for PeerVecVisitor {
 }
 
 impl Connection {
-    pub fn new(stream: TcpStream, peer: Peer) -> Connection {
-        Connection {
+    pub fn new(client: &Client, peer: Peer) -> Result<Connection> {
+        let addr = SocketAddr::from(peer);
+        let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))?;
+
+        stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+        stream.set_read_timeout(Some(Duration::from_secs(30)))?;
+
+        let mut conn = Connection {
+            name: peer.ip.to_string(),
             stream,
             chocked: true,
-            bitfield: None,
-            peer
-        }
+            bitfield: None
+        };
+
+        conn.complete_handshake(client)?;
+
+        Ok(conn)
     }
 
     pub fn send(&mut self, message: Message) -> io::Result<()> {
@@ -178,7 +189,7 @@ impl Connection {
         Ok(res_hs)
     }
 
-    pub fn complete_handshake(&mut self, client: &Client) -> Result<()> {
+    fn complete_handshake(&mut self, client: &Client) -> Result<()> {
         let hs = self.send_handshake(client)?;
         let res_hs = self.receive_handshake()?;
 
