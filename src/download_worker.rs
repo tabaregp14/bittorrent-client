@@ -70,7 +70,7 @@ impl DownloaderWorker {
                             println!("Piece {} finished. Pieces done: {} / {} from {} peers",
                                      &work_piece.index,
                                      &done_pieces,
-                                     &self.client.torrent.length,
+                                     &self.client.torrent.total_pieces,
                                      Arc::strong_count(&self.client) - 1);
                         }
                         Err(_) => {

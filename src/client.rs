@@ -23,7 +23,7 @@ pub struct Client {
 
 pub struct TorrentState {
     pub info_hash: Vec<u8>,
-    pub length: u32,
+    pub total_pieces: u32,
     piece_queue: Mutex<VecDeque<Piece>>,
     done_pieces: Mutex<u32>,
 }
@@ -126,7 +126,7 @@ impl TorrentState {
         TorrentState {
             done_pieces: Mutex::new(0),
             piece_queue: Mutex::new(torrent.create_piece_queue()),
-            length: torrent.pieces.len() as u32,
+            total_pieces: torrent.pieces.len() as u32,
             info_hash: torrent.info_hash.to_owned(),
         }
     }
@@ -134,7 +134,7 @@ impl TorrentState {
     pub fn is_done(&self) -> bool {
         let done_pieces = self.done_pieces.lock().unwrap();
 
-        if *done_pieces >= self.length {
+        if *done_pieces >= self.total_pieces {
             return true;
         }
 
