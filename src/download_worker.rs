@@ -47,10 +47,10 @@ impl DownloaderWorker {
 
     fn download(&mut self) {
         while !self.client.torrent.is_done() {
-            match self.client.torrent.get_piece_from_queue() {
+            match self.get_piece_from_queue() {
                 Some(work_piece) => {
                     if !self.conn.has_piece(&work_piece.index) {
-                        self.client.torrent.push_piece_to_queue(work_piece);
+                        self.push_piece_to_queue(work_piece);
 
                         continue;
                     }
@@ -70,7 +70,7 @@ impl DownloaderWorker {
                                      Arc::strong_count(&self.client) - 1);
                         }
                         Err(_) => {
-                            self.client.torrent.push_piece_to_queue(work_piece/*.to_owned()*/);
+                            self.push_piece_to_queue(work_piece/*.to_owned()*/);
 
                             // FIXME: break only on specific errors
                             break;
@@ -104,6 +104,18 @@ impl DownloaderWorker {
         piece.check_integrity(Sha1::digest(&state.buf).to_vec())?;
 
         Ok(state)
+    }
+
+    fn get_piece_from_queue(&self) -> Option<Piece> {
+        let mut piece_queue = self.client.get_piece_queue();
+
+        piece_queue.pop_front()
+    }
+
+    fn push_piece_to_queue(&self, piece: Piece) {
+        let mut pieces_queue = self.client.get_piece_queue();
+
+        pieces_queue.push_back(piece);
     }
 
     fn interpret_message(&mut self, message: Message) -> io::Result<()> {

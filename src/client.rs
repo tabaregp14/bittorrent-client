@@ -49,6 +49,13 @@ impl Client {
             .unwrap()
     }
 
+    pub fn get_piece_queue(&self) -> MutexGuard<VecDeque<Piece>> {
+        self.torrent
+            .piece_queue
+            .lock()
+            .unwrap()
+    }
+
     pub fn get_file(&self) -> MutexGuard<File> {
         self.file.lock().unwrap()
     }
@@ -122,22 +129,6 @@ impl TorrentState {
         }
 
         false
-    }
-
-    pub fn get_piece_from_queue(&self) -> Option<Piece> {
-        let mut piece_queue = self.piece_queue
-            .lock()
-            .unwrap();
-
-        piece_queue.pop_front()
-    }
-
-    pub fn push_piece_to_queue(&self, piece: Piece) {
-        let mut pieces_queue = self.piece_queue
-            .lock()
-            .unwrap();
-
-        pieces_queue.push_back(piece);
     }
 }
 
