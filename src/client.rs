@@ -86,9 +86,7 @@ impl Client {
     }
 
     fn generate_random_id() -> Vec<u8> {
-        let id = rand::thread_rng().gen::<[u8; 20]>().to_vec();
-
-        id
+        rand::thread_rng().gen::<[u8; 20]>().to_vec()
     }
 
     // TODO: add multiple files creation

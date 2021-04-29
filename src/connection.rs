@@ -222,27 +222,27 @@ pub enum ConnectionError {
 impl fmt::Display for ConnectionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ConnectionError::WrongHash(e) =>
+            Self::WrongHash(e) =>
                 write!(f, "{}", e),
-            ConnectionError::Utf8Error(e) =>
+            Self::Utf8Error(e) =>
                 write!(f, "{}", e),
-            ConnectionError::IOError(e) =>
+            Self::IOError(e) =>
                 write!(f, "{}", e)
         }
     }
 }
 impl From<WrongHash> for ConnectionError {
-    fn from(err: WrongHash) -> ConnectionError {
-        ConnectionError::WrongHash(err)
+    fn from(err: WrongHash) -> Self {
+        Self::WrongHash(err)
     }
 }
 impl From<io::Error> for ConnectionError {
-    fn from(err: io::Error) -> ConnectionError {
-        ConnectionError::IOError(err)
+    fn from(err: io::Error) -> Self {
+        Self::IOError(err)
     }
 }
 impl From<FromUtf8Error> for ConnectionError {
-    fn from(err: FromUtf8Error) -> ConnectionError {
-        ConnectionError::Utf8Error(err)
+    fn from(err: FromUtf8Error) -> Self {
+        Self::Utf8Error(err)
     }
 }

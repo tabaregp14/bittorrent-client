@@ -35,12 +35,8 @@ fn run(torrent_path: String, out_path: Option<String>) {
                     .start();
 
                 workers.push(handler);
-                // println!("Total peers connected: {}", client.workers.len());
             },
-            Err(_) => {
-                // println!("Could not connect to peer. Error: {}", e);
-                continue;
-            }
+            Err(_) => continue
         }
     }
 

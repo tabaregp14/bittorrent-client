@@ -55,9 +55,7 @@ impl DownloaderWorker {
                         continue;
                     }
 
-                    let piece_result = self.try_download_piece(&work_piece);
-
-                    match piece_result {
+                    match self.try_download_piece(&work_piece) {
                         Ok(piece) => {
                             let mut done_pieces = self.client.get_done_pieces();
                             let mut file = self.client.get_file();
@@ -75,7 +73,6 @@ impl DownloaderWorker {
                             self.client.torrent.push_piece_to_queue(work_piece/*.to_owned()*/);
 
                             // FIXME: break only on specific errors
-                            println_thread!("Unexpected error. Disconnecting...");
                             break;
                         }
                     }
@@ -180,28 +177,21 @@ impl PieceState {
                 }
             },
             Message::Have(index) => {
-                // println_thread!("Have: {}", &index);
                 conn.set_piece(&index);
 
                 Ok(None)
             },
             Message::Choke => {
-                // println_thread!("Choked");
                 conn.chocked = true;
 
                 Ok(None)
             },
             Message::Unchoke => {
-                // println_thread!("Unchoked");
                 conn.chocked = false;
 
                 Ok(None)
             },
-            _ => {
-                // println_thread!("Other message");
-
-                Ok(None)
-            }
+            _ => Ok(None)
         }
     }
 
@@ -231,9 +221,9 @@ enum DownloadPieceError<'a> {
 impl<'a> fmt::Display for DownloadPieceError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DownloadPieceError::WrongHash(e) =>
+            Self::WrongHash(e) =>
                 write!(f, "{}", e),
-            DownloadPieceError::IOError(..) =>
+            Self::IOError(..) =>
                 write!(f, "Error sending message")
         }
     }
