@@ -38,9 +38,9 @@ pub struct Torrent {
     pub info_hash: Vec<u8>,
     pub name: String,
     pub pieces: Vec<PieceHash>,
+    pub length: u64, // file size
     files: Option<Vec<TorrentSubFile>>,
-    piece_length: u32,
-    length: Option<u64> // file size
+    piece_length: u32
 }
 
 #[derive(Clone)]
@@ -60,6 +60,18 @@ pub struct Block {
     pub data: Option<Vec<u8>>
 }
 
+impl BencodeTorrent {
+    fn get_total_length(&self) -> u64 {
+        match self.info.length {
+            Some(length) => length,
+            None => self.info.files.as_ref()
+                .unwrap()
+                .iter()
+                .fold(0, |acc, file| acc + file.length)
+        }
+    }
+}
+
 impl Torrent {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Torrent, OpenTorrentError> {
         let file = fs::read(path)?;
@@ -76,8 +88,8 @@ impl Torrent {
 
         for (index, hash) in self.pieces.iter().enumerate() {
             // if is last piece and last piece is smaller than piece_length
-            if index == self.pieces.len() - 1 && self.calculate_length() % piece_length > 0 {
-                length = self.calculate_length() % piece_length;
+            if index == self.pieces.len() - 1 && self.length % piece_length > 0 {
+                length = self.length % piece_length;
             }
 
             let piece = Piece::new(index as u32,
@@ -90,16 +102,6 @@ impl Torrent {
 
         piece_queue
     }
-
-    pub fn calculate_length(&self) -> u64 {
-        match self.length {
-            Some(length) => length,
-            None => self.files.as_ref()
-                .unwrap()
-                .iter()
-                .fold(0, |acc, file| acc + file.length)
-        }
-    }
 }
 
 impl TryFrom<BencodeTorrent> for Torrent {
@@ -107,13 +109,15 @@ impl TryFrom<BencodeTorrent> for Torrent {
 
     fn try_from(bencode: BencodeTorrent) -> Result<Torrent, Self::Error> {
         let info_bytes = serde_bencode::to_bytes(&bencode.info)?;
+        let length = bencode.info.length
+            .unwrap_or_else(|| bencode.get_total_length());
 
         Ok(Torrent {
             info_hash: Sha1::digest(&info_bytes).to_vec(),
             name: bencode.info.name,
             announce: bencode.announce,
             files: bencode.info.files,
-            length: bencode.info.length,
+            length,
             piece_length: bencode.info.piece_length,
             pieces: bencode.info.pieces.chunks(20)
                 .map(|s| s.to_vec())
@@ -198,7 +202,7 @@ impl fmt::Display for Torrent {
                    ----Size of pieces: {}",
                self.name,
                files_names,
-               self.calculate_length(),
+               self.length,
                self.pieces.len(),
                self.piece_length
         )

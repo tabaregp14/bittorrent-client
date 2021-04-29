@@ -78,7 +78,7 @@ impl Client {
             ("uploaded", self.uploaded.to_string()),
             ("downloaded", self.downloaded.to_string()),
             ("compact", "1".to_string()),
-            ("left", torrent.calculate_length().to_string())
+            ("left", torrent.length.to_string())
         ];
         let url = Url::parse_with_params(base_url.as_str(),&url_params).unwrap();
 
@@ -100,7 +100,7 @@ impl Client {
 
         let file = File::create(&torrent.name)?;
 
-        file.set_len(torrent.calculate_length())?;
+        file.set_len(torrent.length)?;
 
         Ok(file)
     }
